@@ -79,8 +79,9 @@ def check_ids_unique(findings: list[dict]) -> None:
         if not fid:
             fail("ids:present", f"finding missing id: {f.get('claim', '<no claim>')[:60]}")
             continue
-        if not re.match(r"^F-\d{3,}$", fid):
-            fail("ids:format", f"{fid} does not match F-NNN")
+        # F-NNN with optional alpha suffix for corroborating variants (F-010b, F-040b)
+        if not re.match(r"^F-\d{3,}[a-z]?$", fid):
+            fail("ids:format", f"{fid} does not match F-NNN[a-z]")
         if fid in seen:
             fail("ids:unique", f"duplicate id {fid}")
         seen.add(fid)
@@ -161,8 +162,8 @@ def check_trust_memo_orphans(findings: list[dict]) -> None:
         return
     # abandonment check
     if known and cited:
-        max_known = max(int(x.split("-")[1]) for x in known)
-        max_cited = max(int(x.split("-")[1]) for x in cited)
+        max_known = max(int(re.match(r"^F-(\d+)", x).group(1)) for x in known if re.match(r"^F-\d", x))
+        max_cited = max(int(re.match(r"^F-(\d+)", x).group(1)) for x in cited if re.match(r"^F-\d", x))
         if max_known - max_cited > 10:
             warn("trust_memo:abandonment",
                  f"highest finding F-{max_known:03d} but TRUST_MEMO cites only up to F-{max_cited:03d}")

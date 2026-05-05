@@ -324,6 +324,18 @@ def identity_3x3(df):
     assert result.returncode != 0
 
 
+def test_alpha_suffix_ids_accepted(scaffolded_project: Path) -> None:
+    """F-NNN[a-z] is valid for 'corroborating variant' findings (F-010b, F-040b).
+    Regression: the v0.2 port surfaced this when noise-solution's real schema
+    used F-010b (Spearman corroborating F-010 Pearson) and validate rejected it.
+    """
+    f1 = _minimal_finding(fid="F-010")
+    f2 = _minimal_finding(fid="F-010b")
+    write_findings(scaffolded_project, [f1, f2])
+    result = run_validate(scaffolded_project, "--fast")
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
 def test_replay_skips_only_for_line_refs(scaffolded_project: Path) -> None:
     """code_path with :Lstart-Lend is a line reference, not a callable — skip
     is the correct behaviour for these and they should NOT fail replay.

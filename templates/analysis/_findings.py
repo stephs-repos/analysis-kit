@@ -116,9 +116,11 @@ def update(fid: str, *, reason: str, **changes: Any) -> dict[str, Any]:
 
 
 def next_id() -> str:
-    """Return the next available F-NNN id."""
+    """Return the next available F-NNN id (alpha suffixes ignored when ranking)."""
+    import re as _re
     findings = _load()
     if not findings:
         return "F-001"
-    highest = max(int(f["id"].split("-")[1]) for f in findings if f.get("id"))
-    return f"F-{highest + 1:03d}"
+    nums = [int(_re.match(r"^F-(\d+)", f["id"]).group(1))
+            for f in findings if f.get("id") and _re.match(r"^F-\d", f["id"])]
+    return f"F-{max(nums) + 1:03d}"
