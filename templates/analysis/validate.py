@@ -12,7 +12,7 @@ This file is shipped by analysis-kit. Project-specific checks live below the
 PROJECT-SPECIFIC marker. Don't edit core dispatcher logic — fix it upstream
 in analysis-kit and migrate.
 
-Framework version: 0.1.0
+Framework version: 0.2.0
 """
 from __future__ import annotations
 
@@ -31,7 +31,10 @@ DECISIONS_MOD = ROOT / "analysis" / "_decisions.py"
 TRUST_MEMO = ROOT / "live-docs" / "TRUST_MEMO.md"
 MANIFEST = ROOT / "analysis-kit.json"
 
-VALID_CHECK_TYPES = {"scalar", "distribution", "matrix", "quote_provenance", "proportion", "rate"}
+VALID_CHECK_TYPES = {
+    "scalar", "distribution", "matrix", "quote_provenance",
+    "proportion", "rate", "boolean", "manual",
+}
 VALID_TAGS = {"OBSERVED", "PLAUSIBLE", "WEAK"}
 
 failures: list[tuple[str, str]] = []
@@ -292,12 +295,41 @@ def _replay_quote(f: dict, _result: Any) -> bool:
     return quote in p.read_text(errors="ignore")
 
 
+def _replay_boolean(f: dict, value: Any) -> bool:
+    expected = f.get("value")
+    if not isinstance(expected, bool) or not isinstance(value, bool):
+        return False
+    return expected == value
+
+
+def _replay_matrix(f: dict, mat: Any) -> bool:
+    """Matrix: list-of-lists. Element-wise float compare with the same tolerance."""
+    expected = f.get("matrix")
+    if expected is None or mat is None:
+        return False
+    if len(expected) != len(mat):
+        return False
+    for row_e, row_a in zip(expected, mat):
+        if len(row_e) != len(row_a):
+            return False
+        for e, a in zip(row_e, row_a):
+            if isinstance(e, (int, float)) and isinstance(a, (int, float)):
+                if not math.isclose(e, a, rel_tol=_TOL_REL, abs_tol=_TOL_ABS):
+                    return False
+            elif e != a:
+                return False
+    return True
+
+
 REPLAY_DISPATCH = {
     "scalar": _replay_scalar,
     "proportion": _replay_scalar,
     "rate": _replay_scalar,
     "distribution": _replay_distribution,
     "quote_provenance": _replay_quote,
+    "boolean": _replay_boolean,
+    "matrix": _replay_matrix,
+    # "manual" → handled in replay_finding directly (no callable invocation)
 }
 
 
@@ -305,6 +337,10 @@ def replay_finding(f: dict, decisions_mod) -> tuple[bool, str]:
     """Return (ok, message)."""
     ct = f.get("check_type")
     fid = f.get("id", "?")
+
+    if ct == "manual":
+        # Documented-but-not-auto-replayable. Caller must surface as audit, not skip.
+        return True, "manual check_type — no replay (audit by hand)"
 
     if ct == "quote_provenance":
         if _replay_quote(f, None):
@@ -348,13 +384,21 @@ def run_replay(findings: list[dict]) -> None:
     if decisions_mod is None and any(f.get("data_contract", {}).get("filters") for f in findings):
         fail("replay:_decisions.py", "findings reference DR-NNN filters but analysis/_decisions.py is missing")
         return
+    n_manual = 0
     for f in findings:
         fid = f.get("id", "?")
         ok_, msg = replay_finding(f, decisions_mod)
         if ok_:
-            print(f"REPLAY {fid}  ok  {msg}")
+            if f.get("check_type") == "manual":
+                print(f"AUDIT  {fid}  manual  {msg}")
+                n_manual += 1
+            else:
+                print(f"REPLAY {fid}  ok  {msg}")
         else:
             fail(f"replay:{fid}", msg)
+    if n_manual:
+        warn("replay:manual_findings",
+             f"{n_manual} finding(s) have check_type=manual — auto-replay does not verify; audit by hand")
 
 
 # ─── PROJECT-SPECIFIC checks ────────────────────────────────────────────────

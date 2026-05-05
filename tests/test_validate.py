@@ -233,6 +233,97 @@ def test_replay_fails_loudly_on_import_error(scaffolded_project: Path) -> None:
     assert "import" in result.stdout.lower() or "import" in result.stderr.lower()
 
 
+def test_boolean_check_type_replays(project_with_fixture: Path) -> None:
+    p = project_with_fixture
+    (p / "analysis" / "02_profile.py").write_text("""\
+def has_zero_sentinel(df):
+    return bool((df["session_rating"] == 0).any())
+""")
+    f = _minimal_finding(
+        check_type="boolean",
+        code_path="analysis/02_profile.py:has_zero_sentinel",
+        value=True,
+        measurement_ref="analysis/02_profile.py:has_zero_sentinel",
+    )
+    f["data_contract"]["row_count_after_filter"] = 10
+    write_findings(p, [f])
+    result = run_validate(p)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "value matches" in result.stdout
+
+
+def test_boolean_check_type_catches_drift(project_with_fixture: Path) -> None:
+    p = project_with_fixture
+    (p / "analysis" / "02_profile.py").write_text("""\
+def has_zero_sentinel(df):
+    return bool((df["session_rating"] == 0).any())  # actually True
+""")
+    f = _minimal_finding(
+        check_type="boolean",
+        code_path="analysis/02_profile.py:has_zero_sentinel",
+        value=False,  # claim is wrong
+        measurement_ref="analysis/02_profile.py:has_zero_sentinel",
+    )
+    f["data_contract"]["row_count_after_filter"] = 10
+    write_findings(p, [f])
+    result = run_validate(p)
+    assert result.returncode != 0
+    assert "value mismatch" in result.stdout
+
+
+def test_manual_check_type_passes_with_warning(scaffolded_project: Path) -> None:
+    f = _minimal_finding(
+        check_type="manual",
+        code_path="analysis/02_profile.py:no_callable_needed",
+        measurement_ref="analysis/02_profile.py:no_callable_needed",
+    )
+    write_findings(scaffolded_project, [f])
+    result = run_validate(scaffolded_project)
+    assert result.returncode == 0
+    assert "AUDIT" in result.stdout
+    assert "manual" in result.stdout.lower()
+
+
+def test_matrix_check_type_replays(project_with_fixture: Path) -> None:
+    p = project_with_fixture
+    (p / "analysis" / "02_profile.py").write_text("""\
+def identity_3x3(df):
+    return [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+""")
+    f = _minimal_finding(
+        check_type="matrix",
+        code_path="analysis/02_profile.py:identity_3x3",
+        measurement_ref="analysis/02_profile.py:identity_3x3",
+    )
+    f.pop("value", None)
+    f.pop("n", None)
+    f["matrix"] = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+    f["data_contract"]["row_count_after_filter"] = 10
+    write_findings(p, [f])
+    result = run_validate(p)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_matrix_check_type_catches_drift(project_with_fixture: Path) -> None:
+    p = project_with_fixture
+    (p / "analysis" / "02_profile.py").write_text("""\
+def identity_3x3(df):
+    return [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+""")
+    f = _minimal_finding(
+        check_type="matrix",
+        code_path="analysis/02_profile.py:identity_3x3",
+        measurement_ref="analysis/02_profile.py:identity_3x3",
+    )
+    f.pop("value", None)
+    f.pop("n", None)
+    f["matrix"] = [[1.0, 0.0, 0.0], [0.0, 0.99, 0.0], [0.0, 0.0, 1.0]]  # off
+    f["data_contract"]["row_count_after_filter"] = 10
+    write_findings(p, [f])
+    result = run_validate(p)
+    assert result.returncode != 0
+
+
 def test_replay_skips_only_for_line_refs(scaffolded_project: Path) -> None:
     """code_path with :Lstart-Lend is a line reference, not a callable — skip
     is the correct behaviour for these and they should NOT fail replay.

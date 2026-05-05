@@ -4,7 +4,12 @@ The `findings.json` schema is the API between the operator (Claude) and the trus
 
 ## Current schema version
 
-`framework_version: 0.1.0`. Stored in each project's `analysis-kit.json`.
+`framework_version: 0.2.0`. Stored in each project's `analysis-kit.json`.
+
+### Changelog
+
+- **0.2.0** — Added `boolean` and `manual` check_types. `boolean` for assertions whose value is a Python bool (`function returns True/False, compared to stored`). `manual` for findings that are structurally documented but not auto-replayable; surface as `AUDIT` lines in validate output and emit a warning. Both surfaced when porting noise-solution's 35-finding set: 5 booleans (data-quality assertions, "X is true/false" findings) and 17 heterogeneous-dict findings that don't fit the typed enum cleanly. Promoted `matrix` from "shipped but untested" to "first-class with regression tests"; expects list-of-lists, element-wise float compare with the project tolerance.
+- **0.1.0** — Initial schema: scalar, distribution, matrix, quote_provenance, proportion, rate.
 
 ## A finding
 
@@ -37,7 +42,7 @@ The `findings.json` schema is the API between the operator (Claude) and the trus
 |---|---|---|
 | `id` | string | `F-NNN`. Monotonic per project. Never reused. |
 | `claim` | string | Human-readable assertion, including `(n=N)`. |
-| `check_type` | enum | `scalar`, `distribution`, `matrix`, `quote_provenance`, `proportion`, `rate`. Validate.py dispatches on this. |
+| `check_type` | enum | `scalar`, `distribution`, `matrix`, `quote_provenance`, `proportion`, `rate`, `boolean`, `manual`. Validate.py dispatches on this. |
 | `code_path` | string | `path/to/file.py:function_name` or `path/to/file.py:Lstart-Lend`. Must resolve. |
 | `data_contract` | object | See below. |
 | `caveats` | string[] | Cross-references to `memory/data_quality_caveats.md` entries. Empty array is allowed but `validate --strict` warns. |
@@ -46,13 +51,17 @@ The `findings.json` schema is the API between the operator (Claude) and the trus
 
 ### Conditional fields
 
-- `value`: required when `check_type` is `scalar`, `proportion`, `rate`.
+- `value`: required when `check_type` is `scalar`, `proportion`, `rate`, `boolean`.
 - `n`: required when `check_type` is `scalar`, `proportion`, `rate`, `distribution`.
 - `distribution`: required when `check_type == "distribution"`. Object with `min`, `q25`, `median`, `q75`, `max`, optionally `mean`, `std`.
-- `matrix`: required when `check_type == "matrix"`. Array of arrays.
+- `matrix`: required when `check_type == "matrix"`. List of lists; element-wise float compare on numerics, exact compare on others.
 - `quote`: required when `check_type == "quote_provenance"`. Verbatim text.
 - `source_locator`: required when `check_type == "quote_provenance"`. Where in the source the quote was found.
 - `measurement_ref`: required when `counterfactual_tag == "OBSERVED"`. Path:line reference to the measurement code.
+
+### `manual` check_type
+
+Use when a finding is structurally important but not naturally machine-replayable: heterogeneous nested dicts, qualitative judgements, snapshots whose comparison logic would be high-maintenance for low gain. Validate.py runs all structural checks (id, schema, data_contract, code_path resolves, etc.) and surfaces an `AUDIT` line plus a warning that this finding was not auto-verified. Promote to a typed check_type when a clear shape emerges across multiple manual findings.
 
 ### `data_contract` object
 
