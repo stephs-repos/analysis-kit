@@ -202,24 +202,46 @@ def _import_decisions() -> Any:
     return mod
 
 
-def _import_callable(code_path: str) -> Callable | None:
-    """code_path is 'analysis/02_profile.py:func_name'. Return func or None."""
+def _is_line_ref(code_path: str) -> bool:
+    """code_path of form 'path/file.py:Lstart-Lend' is a line ref, not a callable."""
     if ":" not in code_path:
-        return None
+        return True
+    fn_name = code_path.rsplit(":", 1)[1]
+    return fn_name.startswith("L") and (fn_name[1:2].isdigit() or fn_name[1:2] == "")
+
+
+def _import_callable(code_path: str) -> tuple[Callable | None, str | None]:
+    """code_path is 'analysis/02_profile.py:func_name'. Return (fn, error_msg).
+
+    On success: (callable, None). On failure: (None, reason). The caller must
+    treat None+reason as a replay failure, not a skip.
+    """
+    if ":" not in code_path:
+        return None, f"code_path {code_path!r} has no ':func_name' suffix"
     file_str, fn_name = code_path.rsplit(":", 1)
-    if fn_name.startswith("L"):  # line range, not callable
-        return None
     p = ROOT / file_str
     if not p.exists():
-        return None
+        return None, f"file {file_str} does not exist"
+
+    # Add project root to sys.path so 'from analysis._x import y' resolves
+    # during the imported module's load.
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+
     spec = importlib.util.spec_from_file_location(p.stem, p)
+    if spec is None or spec.loader is None:
+        return None, f"could not build import spec for {file_str}"
     mod = importlib.util.module_from_spec(spec)
     try:
-        spec.loader.exec_module(mod)  # type: ignore[union-attr]
+        spec.loader.exec_module(mod)
     except Exception as e:
-        print(f"  (could not import {file_str}: {e})")
-        return None
-    return getattr(mod, fn_name, None)
+        return None, f"import of {file_str} raised: {type(e).__name__}: {e}"
+    fn = getattr(mod, fn_name, None)
+    if fn is None:
+        return None, f"{fn_name} not found in {file_str}"
+    if not callable(fn):
+        return None, f"{fn_name} in {file_str} is not callable"
+    return fn, None
 
 
 def _apply_filters(df, filter_ids: list[str], decisions_mod) -> Any:
@@ -289,9 +311,13 @@ def replay_finding(f: dict, decisions_mod) -> tuple[bool, str]:
             return True, "quote found in source"
         return False, f"quote not found at {f.get('source_locator')}"
 
-    fn = _import_callable(f.get("code_path", ""))
-    if fn is None:
+    code_path = f.get("code_path", "")
+    if _is_line_ref(code_path):
         return True, "code_path is line-ref (skipped — replay needs a callable)"
+
+    fn, err = _import_callable(code_path)
+    if fn is None:
+        return False, err or "could not import callable"
 
     try:
         # Most projects: function takes a dataframe pre-filtered by data_contract.

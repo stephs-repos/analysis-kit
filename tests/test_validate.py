@@ -182,6 +182,73 @@ def DR_001(df: pd.DataFrame) -> pd.DataFrame:
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+def test_replay_with_intra_project_import_succeeds(project_with_fixture: Path) -> None:
+    """Regression: validate.py must add project root to sys.path so a profile
+    script's 'from analysis._decisions import X' resolves during replay.
+
+    Bug found 2026-05-05: validate would silently log 'ok' while having
+    skipped replay due to ImportError. Goodhart on the validator itself.
+    """
+    p = project_with_fixture
+    (p / "analysis" / "_decisions.py").write_text("""\
+import pandas as pd
+
+def DR_001(df: pd.DataFrame) -> pd.DataFrame:
+    return df[df["session_rating"] != 0]
+""")
+    (p / "analysis" / "02_profile.py").write_text("""\
+from analysis._decisions import DR_001  # noqa: F401 — must resolve during replay
+
+def median_session_rating(df):
+    return float(df["session_rating"].median())
+""")
+    f = _minimal_finding(
+        check_type="scalar",
+        code_path="analysis/02_profile.py:median_session_rating",
+        value=4.0,
+        measurement_ref="analysis/02_profile.py:median_session_rating",
+    )
+    f["data_contract"]["row_count_after_filter"] = 10
+    write_findings(p, [f])
+    result = run_validate(p)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "value matches" in result.stdout
+
+
+def test_replay_fails_loudly_on_import_error(scaffolded_project: Path) -> None:
+    """Replay must distinguish 'unimportable' from 'line-ref skip'. Unimportable
+    is a hard fail — never silently green.
+    """
+    p = scaffolded_project
+    (p / "analysis" / "broken.py").write_text("import this_does_not_exist\n\ndef fn(df):\n    return 0\n")
+    f = _minimal_finding(
+        check_type="scalar",
+        code_path="analysis/broken.py:fn",
+        value=0,
+        measurement_ref="analysis/broken.py:fn",
+    )
+    write_findings(p, [f])
+    result = run_validate(p)
+    assert result.returncode != 0
+    assert "import" in result.stdout.lower() or "import" in result.stderr.lower()
+
+
+def test_replay_skips_only_for_line_refs(scaffolded_project: Path) -> None:
+    """code_path with :Lstart-Lend is a line reference, not a callable — skip
+    is the correct behaviour for these and they should NOT fail replay.
+    """
+    f = _minimal_finding(
+        check_type="scalar",
+        code_path="analysis/02_profile.py:L1-L10",
+        value=4.0,
+        measurement_ref="analysis/02_profile.py:L1-L10",
+    )
+    write_findings(scaffolded_project, [f])
+    result = run_validate(scaffolded_project)
+    assert result.returncode == 0
+    assert "line-ref" in result.stdout
+
+
 # ── helpers ─────────────────────────────────────────────────────────────────
 
 def _minimal_finding(*, fid: str = "F-001", **overrides) -> dict:
