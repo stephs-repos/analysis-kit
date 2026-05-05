@@ -1,0 +1,3 @@
+pandas>=2.0
+pandera>=0.20
+numpy>=1.24

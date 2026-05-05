@@ -1,0 +1,11 @@
+session_id,session_rating,coach_id,session_number
+S001,4.0,C1,1
+S002,4.5,C1,2
+S003,5.0,C1,3
+S004,3.0,C2,1
+S005,4.0,C2,2
+S006,0,C2,3
+S007,4.5,C3,1
+S008,5.0,C3,2
+S009,3.5,C3,3
+S010,4.0,C3,4

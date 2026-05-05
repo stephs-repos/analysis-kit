@@ -1,0 +1,66 @@
+---
+title: "{{VIGNETTE_TITLE}}"
+author: "{{AUTHOR}}"
+date: today
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    embed-resources: true
+  pdf:
+    toc: true
+execute:
+  echo: false
+  warning: false
+---
+
+> Vignette template — replace this block with a 1–2 sentence framing for non-technical readers.
+
+## Finding
+
+The headline result. Cite finding ids inline: [`F-NNN`](#).
+
+## Context
+
+What question this answers. Who's asking. Why now.
+
+## Plot
+
+```{python}
+#| label: fig-headline
+#| fig-cap: "Caption"
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Load relevant subset (filtered per data_contract).
+# df = pd.read_csv("../reference/raw-data/...")
+# Apply DR-NNN filters from analysis/_decisions.py.
+# Render the chart.
+plt.figure()
+plt.title("placeholder")
+plt.show()
+```
+
+## Implications
+
+What this means for the project's question. Tag claims:
+
+- A measurable thing [`OBSERVED`]
+- An informed inference [`PLAUSIBLE` — supporting pattern: ...]
+- Anything you can't defend → rephrase or remove [no `WEAK` claims in published vignettes]
+
+## Caveats
+
+What this analysis does *not* support. Cross-reference `memory/data_quality_caveats.md`.
+
+## Follow-up questions
+
+What this raises. Add to `live-docs/ANALYSIS_BACKLOG.md` as `A-NNN` if worth pursuing.
+
+## Reproducibility
+
+This vignette's claims are backed by:
+
+- {{F-NNN list}}
+- Filters applied: {{DR-NNN list}}
+- Run `python ../analysis/validate.py` to verify.

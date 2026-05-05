@@ -1,0 +1,8 @@
+{
+  "framework_version": "0.1.0",
+  "tier": "{{TIER}}",
+  "project_name": "{{PROJECT_NAME}}",
+  "created_at": "{{CREATED_AT}}",
+  "model_version": null,
+  "_comment": "framework_version pins the validate.py / findings.json schema. tier is 'minimum' or 'full'. model_version should be set by the agent on first run (e.g., 'claude-opus-4-7') and updated when the model changes."
+}

@@ -1,0 +1,20 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+.DS_Store
+*.swp
+
+# Raw data is gitignored by default — override per-project as appropriate
+reference/raw-data/
+
+# Quarto build artefacts
+_site/
+*.html
+!live-docs/*.html
+*_files/
+
+# Local scratch
+*.local.md
