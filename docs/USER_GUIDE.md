@@ -30,6 +30,8 @@ This is the long-form guide. If you just want to start a project right now, see 
 
 ## What is analysis-kit?
 
+analysis-kit is essentially a lightweight reproducibility and provenance framework for pandas-style analysis projects, designed for situations where you are producing memos, reports, or stakeholder-facing findings, not building production data pipelines. Its whole purpose is to stop AI-assisted analysis from producing numbers that look credible but cannot be traced, reproduced, or trusted and sits somewhere between “plain Jupyter chaos” and “full enterprise-grade data governance.” The sweet spot is consulting-style or nonprofit/public-sector analysis where you need to move quickly but cannot afford to have numbers become untraceable. In other words, it's for making AI-assisted data analysis auditable enough that you can safely put numbers in front of real people.
+
 analysis-kit is a **scaffolding framework** for data-analysis projects where [Claude Code](https://code.claude.com) (or another agentic AI) is doing some of the work. It gives you a starting layout — a folder structure, a few template files, a small Python harness, and some Claude Code hooks — that enforces a particular discipline:
 
 - Every quantitative claim you make to a stakeholder is backed by a code path that reproduces it.
