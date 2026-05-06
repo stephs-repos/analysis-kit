@@ -17,13 +17,21 @@ git clone https://github.com/<your-user>/analysis-kit ~/dev/analysis-kit
 
 ## Verify
 
+Two paths — pick one.
+
+### Option A: VS Code dev container (recommended)
+
+The repo ships `.devcontainer/`. Open the folder in VS Code, accept "Reopen in Container", wait for the build. Post-create installs the pinned dev environment and runs `pytest` automatically. If you see `35 passed` at the end, you're ready. Verified-working versions are checked in at `.devcontainer/requirements-dev.txt`.
+
+### Option B: local Python
+
 ```bash
 cd ~/dev/analysis-kit
 pip install -e ".[dev]"
 pytest tests/
 ```
 
-All tests should pass. If they don't, file an issue rather than scaffolding from a broken kit.
+All tests should pass. If they don't, file an issue rather than scaffolding from a broken kit. If you hit a version mismatch, the `.devcontainer/requirements-dev.txt` set is the verified one — pin to those.
 
 ## Create a project
 

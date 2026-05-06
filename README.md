@@ -28,6 +28,16 @@ pip install -r requirements.txt
 claude            # opens Claude Code; reads CLAUDE.md → follows the discipline
 ```
 
+### VS Code dev container (recommended for working on analysis-kit itself)
+
+The repo ships a `.devcontainer/` config so you can open it in VS Code with a reproducible environment in one click:
+
+1. Open the repo folder in VS Code.
+2. When prompted ("Reopen in Container"), accept — or run `Dev Containers: Reopen in Container` from the command palette.
+3. Wait for the build (~2 min first time). Post-create runs `pytest` as a smoke test.
+
+You get Python 3.13, pinned `pandas`/`pandera`/`numpy`/`pytest`, Quarto, `jq`, and the `gh` CLI — all verified together. See [`.devcontainer/`](.devcontainer/) for the exact pins.
+
 Tiers:
 
 - `--minimum` — CLAUDE.md, six live-docs, `validate.py`, `memory/`, `.claude/hooks/`. Pandera in deps.

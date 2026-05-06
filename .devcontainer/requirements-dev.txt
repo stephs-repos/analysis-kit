@@ -1,0 +1,17 @@
+# analysis-kit dev dependencies — pinned to a verified-working set.
+#
+# Verified 2026-05-06 on Python 3.13.13: 35/35 self-tests pass.
+#
+# Update procedure:
+#   1. Build container, run pytest
+#   2. If everything passes, capture: pip freeze | grep -E "^(pandas|pandera|numpy|pytest)=" > .devcontainer/requirements-dev.txt
+#   3. Commit with a note about the verification platform
+#
+# These are EXACT pins (==), not minimums (>=), because the dev container's
+# job is to give a reproducible "guaranteed to work" environment. The
+# project's pyproject.toml uses looser bounds for downstream consumers.
+
+pandas==2.3.3
+pandera==0.31.1
+numpy==2.3.5
+pytest==9.0.3

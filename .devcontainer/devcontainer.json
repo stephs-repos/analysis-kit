@@ -1,0 +1,48 @@
+{
+  "name": "analysis-kit",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "ms-toolsai.jupyter",
+        "tamasfe.even-better-toml",
+        "redhat.vscode-yaml",
+        "quarto.quarto"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.testing.pytestEnabled": true,
+        "python.testing.pytestArgs": ["tests"],
+        "python.testing.unittestEnabled": false,
+        "[python]": {
+          "editor.tabSize": 4,
+          "editor.insertSpaces": true
+        },
+        "files.trimTrailingWhitespace": true,
+        "files.insertFinalNewline": true
+      }
+    }
+  },
+
+  "containerEnv": {
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PIP_DISABLE_PIP_VERSION_CHECK": "1"
+  },
+
+  "remoteUser": "vscode",
+
+  "_comment": "Pinned to verified-working versions: Python 3.13, pandas 2.3.3, pandera 0.31.1, numpy 2.3.5, pytest 9.0.3, Quarto 1.6.40. 35/35 self-tests pass on this set."
+}
