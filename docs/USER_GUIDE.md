@@ -74,25 +74,6 @@ After bootstrap, the new project is a **complete artefact**. You can delete `~/d
 - **For teammates joining a scaffolded project:** they clone the *project repo*, not analysis-kit. They only need analysis-kit if they want to scaffold their own new project.
 - **For upgrades:** when analysis-kit ships v0.3, your existing projects don't change automatically. To pull in new check_types or hooks, manually copy the new `validate.py` over and run any migration script. The scaffolded project is a snapshot, pinned via `analysis-kit.json`'s `framework_version`.
 
-### The trade-off (and why this model was chosen)
-
-|  | Scaffolding (this) | Dependency (dbt-style) |
-|---|---|---|
-| Customise per project | trivial — edit the file | needs plugin/subclass |
-| Project readable on its own | yes — every check is visible | no — most logic is in pip-installed package |
-| Upgrade discipline | manual; deliberate | automatic via pip |
-| Version skew between projects | possible (deliberately) | rare |
-| Bug fixes propagate | manual | automatic |
-
-For consulting/research/sprint work, scaffolding fits better because:
-
-1. **Projects are short-lived.** Each one is a *time capsule* — what was checked, when, with what code. Auto-upgrading checks would silently change what "passed" meant six months ago.
-2. **Project-specific checks are common.** With a dependency, you'd need plugin architecture; with scaffolding, you just edit `project_specific_checks()` in your `validate.py`.
-3. **Reproducibility benefits from snapshot semantics.** "What checks did this finding pass on the day we shipped?" → look at the file in that commit.
-4. **Most users don't want to manage Python package updates** across many independent project repos.
-
-For long-running platform work (a single warehouse, a single ML system, a single dashboard), a dbt-style dependency would be better. Different project shape; this kit isn't aimed at it.
-
 ## Why use it?
 
 A few specific problems analysis-kit is designed to prevent:
