@@ -5,26 +5,27 @@ This is the long-form guide. If you just want to start a project right now, see 
 ## Contents
 
 1. [What is analysis-kit?](#what-is-analysis-kit)
-2. [Why use it?](#why-use-it)
-3. [Prerequisites](#prerequisites)
-4. [Quick start](#quick-start)
-5. [Tour of a scaffolded project](#tour-of-a-scaffolded-project)
-6. [The trust contract, explained](#the-trust-contract-explained)
-7. [Working with findings](#working-with-findings)
-8. [Working with decisions (DR-NNN)](#working-with-decisions-dr-nnn)
-9. [Working with the analysis backlog (A-NNN)](#working-with-the-analysis-backlog-a-nnn)
-10. [Working with memory and caveats](#working-with-memory-and-caveats)
-11. [The live documents](#the-live-documents)
-12. [Hooks: what they do, when they fire](#hooks-what-they-do-when-they-fire)
-13. [`validate.py` — running and extending](#validatepy--running-and-extending)
-14. [The two tiers: `--minimum` and `--full`](#the-two-tiers-minimum-and-full)
-15. [Vignettes — publishing for non-technical readers](#vignettes--publishing-for-non-technical-readers)
-16. [Common workflows (cookbook)](#common-workflows-cookbook)
-17. [Counterfactual tagging discipline](#counterfactual-tagging-discipline)
-18. [Troubleshooting](#troubleshooting)
-19. [When NOT to use analysis-kit](#when-not-to-use-analysis-kit)
-20. [Upgrading the framework](#upgrading-the-framework)
-21. [Glossary](#glossary)
+2. [Distribution model](#distribution-model)
+3. [Why use it?](#why-use-it)
+4. [Prerequisites](#prerequisites)
+5. [Quick start](#quick-start)
+6. [Tour of a scaffolded project](#tour-of-a-scaffolded-project)
+7. [The trust contract, explained](#the-trust-contract-explained)
+8. [Working with findings](#working-with-findings)
+9. [Working with decisions (DR-NNN)](#working-with-decisions-dr-nnn)
+10. [Working with the analysis backlog (A-NNN)](#working-with-the-analysis-backlog-a-nnn)
+11. [Working with memory and caveats](#working-with-memory-and-caveats)
+12. [The live documents](#the-live-documents)
+13. [Hooks: what they do, when they fire](#hooks-what-they-do-when-they-fire)
+14. [`validate.py` — running and extending](#validatepy--running-and-extending)
+15. [The two tiers: `--minimum` and `--full`](#the-two-tiers-minimum-and-full)
+16. [Vignettes — publishing for non-technical readers](#vignettes--publishing-for-non-technical-readers)
+17. [Common workflows (cookbook)](#common-workflows-cookbook)
+18. [Counterfactual tagging discipline](#counterfactual-tagging-discipline)
+19. [Troubleshooting](#troubleshooting)
+20. [When NOT to use analysis-kit](#when-not-to-use-analysis-kit)
+21. [Upgrading the framework](#upgrading-the-framework)
+22. [Glossary](#glossary)
 
 ---
 
@@ -42,6 +43,55 @@ analysis-kit is a **scaffolding framework** for data-analysis projects where [Cl
 You don't have to use Claude Code with it — the framework is just Python, bash, markdown, and JSON. But it's designed assuming an agent is part of your workflow, and the hooks are Claude Code-specific.
 
 It is **not** a pipeline runner, a notebook framework, or a BI tool. See [When NOT to use analysis-kit](#when-not-to-use-analysis-kit) for what it isn't.
+
+## Distribution model
+
+analysis-kit is a **scaffolding tool**, not a runtime dependency. Closer to cookiecutter than to dbt. It's worth being explicit about this because the model has real consequences for how teammates use it and how upgrades work.
+
+### The lifecycle
+
+```
+   ┌───────────────────────────────┐
+   │  ~/dev/analysis-kit/          │  ← cloned once per machine
+   │  (this repo)                  │     contains templates + bootstrap
+   └───────────────────────────────┘
+                │
+                │  bootstrap/new-project.sh ./my-analysis
+                │  (copies templates, runs git init, makes a fresh repo)
+                ▼
+   ┌───────────────────────────────┐
+   │  ~/work/my-analysis/          │  ← brand new git repo, fully self-contained
+   │  (your project)               │     owns its CLAUDE.md, validate.py, hooks…
+   │                               │     has no runtime dep on analysis-kit
+   └───────────────────────────────┘
+```
+
+After bootstrap, the new project is a **complete artefact**. You can delete `~/dev/analysis-kit/` and the project still runs. There's no `pip install analysis-kit`. Nothing in your project imports `analysis_kit`. The `validate.py` in your project is *your* `validate.py` — fully readable, fully editable.
+
+### What this means in practice
+
+- **For you (the project author):** clone analysis-kit once on your laptop, then use the bootstrap script every time you start a new project.
+- **For teammates joining a scaffolded project:** they clone the *project repo*, not analysis-kit. They only need analysis-kit if they want to scaffold their own new project.
+- **For upgrades:** when analysis-kit ships v0.3, your existing projects don't change automatically. To pull in new check_types or hooks, manually copy the new `validate.py` over and run any migration script. The scaffolded project is a snapshot, pinned via `analysis-kit.json`'s `framework_version`.
+
+### The trade-off (and why this model was chosen)
+
+|  | Scaffolding (this) | Dependency (dbt-style) |
+|---|---|---|
+| Customise per project | trivial — edit the file | needs plugin/subclass |
+| Project readable on its own | yes — every check is visible | no — most logic is in pip-installed package |
+| Upgrade discipline | manual; deliberate | automatic via pip |
+| Version skew between projects | possible (deliberately) | rare |
+| Bug fixes propagate | manual | automatic |
+
+For consulting/research/sprint work, scaffolding fits better because:
+
+1. **Projects are short-lived.** Each one is a *time capsule* — what was checked, when, with what code. Auto-upgrading checks would silently change what "passed" meant six months ago.
+2. **Project-specific checks are common.** With a dependency, you'd need plugin architecture; with scaffolding, you just edit `project_specific_checks()` in your `validate.py`.
+3. **Reproducibility benefits from snapshot semantics.** "What checks did this finding pass on the day we shipped?" → look at the file in that commit.
+4. **Most users don't want to manage Python package updates** across many independent project repos.
+
+For long-running platform work (a single warehouse, a single ML system, a single dashboard), a dbt-style dependency would be better. Different project shape; this kit isn't aimed at it.
 
 ## Why use it?
 
