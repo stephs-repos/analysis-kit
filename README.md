@@ -28,6 +28,16 @@ pip install -r requirements.txt
 claude            # opens Claude Code; reads CLAUDE.md → follows the discipline
 ```
 
+### Claude Code skills (optional, recommended)
+
+Install three workflow skills (`/akit-start`, `/akit-fill`, `/akit-finding`) plus an index (`/akit`) globally so Claude Code can guide users through the analysis-kit lifecycle:
+
+```bash
+~/dev/analysis-kit/bootstrap/install-skills.sh
+```
+
+Then in any new project: `/akit-start <name>` → drop reference materials → `/akit-fill` → `/akit-finding "<hypothesis>"` for each claim. See [`skills/`](skills/) for the source markdown.
+
 ### VS Code dev container (recommended for working on analysis-kit itself)
 
 The repo ships a `.devcontainer/` config so you can open it in VS Code with a reproducible environment in one click:

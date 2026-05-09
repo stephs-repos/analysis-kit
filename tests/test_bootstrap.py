@@ -37,6 +37,41 @@ def test_reference_raw_data_directory_exists(scaffolded_project: Path) -> None:
     assert (p / "README.md").exists()
 
 
+def test_skills_have_valid_frontmatter() -> None:
+    """Every skill must have YAML frontmatter with name + description."""
+    import re
+    skills_dir = Path(__file__).resolve().parent.parent / "skills"
+    assert skills_dir.exists(), "skills/ directory must exist"
+    found = list(skills_dir.glob("*.md"))
+    assert len(found) >= 4, f"expected ≥4 skills, found {len(found)}"
+    for skill in found:
+        txt = skill.read_text()
+        assert txt.startswith("---\n"), f"{skill.name} missing YAML frontmatter"
+        m = re.match(r"^---\n(.*?)\n---\n", txt, re.DOTALL)
+        assert m, f"{skill.name} frontmatter not closed"
+        fm = m.group(1)
+        assert "name:" in fm, f"{skill.name} frontmatter missing name:"
+        assert "description:" in fm, f"{skill.name} frontmatter missing description:"
+
+
+def test_install_skills_substitutes_kit_root(tmp_path: Path) -> None:
+    """install-skills.sh must replace __AKIT_ROOT__ with the kit's absolute path."""
+    import os
+    import subprocess
+    kit_root = Path(__file__).resolve().parent.parent
+    script = kit_root / "bootstrap" / "install-skills.sh"
+    env = os.environ.copy()
+    env["HOME"] = str(tmp_path)
+    result = subprocess.run([str(script)], env=env, capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+    skills = tmp_path / ".claude" / "skills"
+    assert skills.exists()
+    # Substitution: at least one skill (akit-start) references AKIT_ROOT
+    start_md = (skills / "akit-start.md").read_text()
+    assert "__AKIT_ROOT__" not in start_md, "token should have been substituted"
+    assert str(kit_root) in start_md, "kit absolute path should be in installed skill"
+
+
 def test_reference_directory_has_convention_readme(scaffolded_project: Path) -> None:
     """Regression: reference/README.md documents the raw-data-vs-reference
     split (briefs/dictionaries go in reference/, data files go in raw-data/).
