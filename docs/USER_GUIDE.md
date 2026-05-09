@@ -139,7 +139,25 @@ That's it. You now have a project that:
 - Has a `memory/` directory of preconditions for the agent
 - Is a fresh git repo with one initial commit
 
-**Next step:** drop your raw data into `reference/raw-data/`, then either run `python analysis/01_inspect_raw.py` yourself or open Claude Code and ask it to inspect the data.
+**Next steps** — populate the project, then have Claude fill in the templates.
+
+1. **Drop raw data into `reference/raw-data/`.** CSV, Excel, Parquet — whatever you have.
+
+2. **Drop project context into `reference/` directly** (alongside `raw-data/`, not inside it). This means the project brief, the data dictionary, stakeholder correspondence, prior art — anything that gives whoever reads the project a sense of what it's *for*. PDFs are fine for fixed source documents; markdown is preferred for anything you'd edit. See `reference/README.md` in your scaffolded project for the convention.
+
+3. **Have Claude fill in the `{{MUST_CUSTOMIZE}}` markers.** The templates ship with marker text in places that need project-specific content (CLAUDE.md, the six live-docs, memory entries, the stub `_decisions.py`/`schemas.py`/`02_profile.py` files). With Claude Code open in the project, paste this:
+
+   > Run `bootstrap/check-must-customize.sh` and walk through the unfilled markers. Propose a draft for each based on what we've discussed and what you can infer from the data and related project documents in `@reference/`.
+
+   Claude reads the inline instruction inside each marker, plus the reference materials and raw data you dropped in steps 1 and 2, and proposes drafts. You review and edit. The cost of having Claude draft (vs. you doing it from scratch) is what makes the discipline cheap enough to actually follow.
+
+4. **Verify.** Re-run the check until it returns 0:
+
+   ```bash
+   ~/dev/analysis-kit/bootstrap/check-must-customize.sh .
+   ```
+
+   When you see `✓ no MUST_CUSTOMIZE markers remain`, the structural setup is done. From here you start the actual analysis — `python analysis/01_inspect_raw.py` to inspect the data, then begin registering findings via `analysis/_findings.py`.
 
 ## Tour of a scaffolded project
 
