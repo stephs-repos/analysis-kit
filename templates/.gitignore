@@ -7,8 +7,12 @@ venv/
 .DS_Store
 *.swp
 
-# Raw data is gitignored by default — override per-project as appropriate
-reference/raw-data/
+# Raw data files are gitignored by default — override per-project as appropriate.
+# We keep the directory tracked (via its README) so the structure is visible
+# in a fresh clone and analysis scripts have somewhere to point at.
+reference/raw-data/*
+!reference/raw-data/README.md
+!reference/raw-data/.gitkeep
 
 # Quarto build artefacts
 _site/

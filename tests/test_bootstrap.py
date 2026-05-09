@@ -26,6 +26,17 @@ def test_minimum_tier_has_required_files(scaffolded_project: Path) -> None:
     assert (p / ".claude" / "hooks" / "block-unvalidated-commit.sh").exists()
 
 
+def test_reference_raw_data_directory_exists(scaffolded_project: Path) -> None:
+    """Regression: every doc tells users to drop data into reference/raw-data/.
+    The directory must exist after scaffolding so the instruction isn't a lie.
+    """
+    p = scaffolded_project / "reference" / "raw-data"
+    assert p.exists() and p.is_dir(), "reference/raw-data/ must be created by bootstrap"
+    # README inside it documents the convention and keeps the directory tracked
+    # despite the gitignore on raw-data/* contents.
+    assert (p / "README.md").exists()
+
+
 def test_minimum_tier_omits_full_extras(scaffolded_project: Path) -> None:
     p = scaffolded_project
     assert not (p / "vignettes").exists()
