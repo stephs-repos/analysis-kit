@@ -37,6 +37,19 @@ def test_reference_raw_data_directory_exists(scaffolded_project: Path) -> None:
     assert (p / "README.md").exists()
 
 
+def test_reference_directory_has_convention_readme(scaffolded_project: Path) -> None:
+    """Regression: reference/README.md documents the raw-data-vs-reference
+    split (briefs/dictionaries go in reference/, data files go in raw-data/).
+    Must exist so the convention is discoverable from the directory listing.
+    """
+    p = scaffolded_project / "reference" / "README.md"
+    assert p.exists(), "reference/README.md must be created by bootstrap"
+    txt = p.read_text()
+    # sanity-check it documents the split
+    assert "raw-data" in txt
+    assert "brief" in txt.lower() or "dictionary" in txt.lower()
+
+
 def test_minimum_tier_omits_full_extras(scaffolded_project: Path) -> None:
     p = scaffolded_project
     assert not (p / "vignettes").exists()

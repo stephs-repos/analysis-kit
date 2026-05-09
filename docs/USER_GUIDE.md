@@ -181,8 +181,20 @@ my-first-analysis/
 │   ├── analysis_framework.md          # The trust contract restated
 │   └── stakeholder_stance.md          # How the audience views the work
 └── reference/
-    └── raw-data/                      # Your raw data (gitignored by default)
+    ├── README.md                      # The reference/ vs raw-data/ split, format guidance
+    ├── raw-data/                      # Raw data files (gitignored by default)
+    │   └── README.md                  # What does/doesn't belong; on data refreshes
+    └── (your project's briefs, dictionaries, prior art — see reference/README.md)
 ```
+
+The `reference/` directory has two purposes split across two layers:
+
+- **`reference/`** itself holds *project-context materials* that are committed to git: the project brief, the data dictionary, stakeholder correspondence, prior art. These are usually small, often shareable, and you want them visible immediately on `git clone` so a new analyst joining the project has context.
+- **`reference/raw-data/`** holds the *actual data files* (CSV, Excel, etc.). These are gitignored by default — typically large, often sensitive, and refreshed externally. Don't put briefs or dictionaries in here.
+
+Format guidance: prefer markdown for anything you might edit or reference programmatically. PDFs are fine for *fixed* source documents (signed contracts, vendor briefs) but a poor fit for living documents like data dictionaries — they bloat the repo, can't be diffed, and can't be cross-referenced from `live-docs/` or vignettes. If you have a vendor PDF that's a source of truth, keep the PDF for provenance and maintain a markdown shadow next to it.
+
+See `reference/README.md` in any scaffolded project for the full convention.
 
 If you scaffolded `--full` you also get:
 

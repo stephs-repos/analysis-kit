@@ -13,7 +13,7 @@ The framework expects this directory to exist; scripts in `analysis/` and entrie
 ## What does NOT go here
 
 - Cleaned/derived data — that lives in `analysis/output/` or is computed on demand
-- Notes, dictionaries, briefs — those go directly in `reference/` (sibling of this directory), not inside `raw-data/`
+- Notes, dictionaries, briefs, prior art — those go in `reference/` directly (sibling of this directory). See `../README.md` for what goes where and why the split exists.
 - Anything you'd want version-controlled — by default this directory's contents are gitignored (override per-project as appropriate; see `.gitignore`)
 
 ## On gitignore
