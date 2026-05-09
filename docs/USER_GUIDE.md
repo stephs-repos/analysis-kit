@@ -127,10 +127,7 @@ pip install -r requirements.txt
 # 5. Run the validator (it should pass on the empty project)
 python analysis/validate.py --fast
 
-# 6. See which template files still need your input
-~/dev/analysis-kit/bootstrap/check-must-customize.sh .
-
-# 7. (If using Claude Code) open the project — Claude reads CLAUDE.md and follows the discipline
+# 6. (If using Claude Code) open the project — Claude reads CLAUDE.md and follows the discipline
 claude
 ```
 
@@ -143,24 +140,6 @@ That's it. You now have a project that:
 - Is a fresh git repo with one initial commit
 
 **Next step:** drop your raw data into `reference/raw-data/`, then either run `python analysis/01_inspect_raw.py` yourself or open Claude Code and ask it to inspect the data.
-
-### B. Work on analysis-kit itself (≈2 minutes via VS Code dev container)
-
-If you're modifying templates, extending `validate.py`, or contributing changes back, the repo ships a `.devcontainer/` config so you can open it in VS Code with a reproducible environment in one click:
-
-1. Open the `analysis-kit` folder in VS Code.
-2. When prompted, accept "**Reopen in Container**" — or run `Dev Containers: Reopen in Container` from the command palette.
-3. Wait for the build (~2 minutes first time). Post-create runs `pytest` as a smoke test; you'll see `35 passed` in the terminal when it's ready.
-
-You get Python 3.13, pinned `pandas`/`pandera`/`numpy`/`pytest`, plus Quarto, `jq`, and the `gh` CLI — all verified working together. See [`.devcontainer/requirements-dev.txt`](../.devcontainer/requirements-dev.txt) for the exact pins.
-
-Why use the dev container instead of installing locally:
-
-- **Reproducibility.** The pins are tested as a set; "guaranteed to work" actually holds because the post-create script runs the full test suite on every build.
-- **Quarto + jq pre-installed.** Both are needed for the `--full` tier and the hooks; getting them right manually is a chore.
-- **Clean room.** Your local Python environment isn't affected.
-
-You can also still use it without VS Code — the same `Dockerfile` and `post-create.sh` work with any `devcontainer`-compatible runtime (e.g., `devcontainer up` from the CLI), or you can read them as a recipe for setting up a local environment.
 
 ## Tour of a scaffolded project
 
