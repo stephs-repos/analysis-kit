@@ -8,10 +8,14 @@
 
 FROM mcr.microsoft.com/devcontainers/python:1-3.13-bookworm
 
+# Remove the yarn apt source bundled with this base image — its signing key
+# rotates periodically and breaks subsequent apt-get update calls
+# (NO_PUBKEY 62D54FD4003F6525 as of 2026-05). We don't need yarn here.
 # System packages required at runtime
 # - jq: parses Claude Code hook stdin in templates/.claude/hooks/*.sh
 # - curl: pulls the Quarto installer (already present in base, but explicit)
-RUN apt-get update \
+RUN rm -f /etc/apt/sources.list.d/yarn* \
+    && apt-get update \
     && apt-get install -y --no-install-recommends \
         jq \
         curl \
