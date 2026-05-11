@@ -24,8 +24,11 @@ RUN rm -f /etc/apt/sources.list.d/yarn* \
 # Quarto — pinned to a tested release. Used by templates/_quarto.yml and
 # templates/vignettes/00_template.qmd in --full-tier scaffolds.
 ARG QUARTO_VERSION=1.6.40
-RUN curl -fsSL \
-        "https://github.com/quarto-dev/quarto-cli/releases/download/v${QUARTO_VERSION}/quarto-${QUARTO_VERSION}-linux-amd64.deb" \
+# Detect arch so this works on both x86_64 (cloud Codespaces) and arm64
+# (Apple Silicon). dpkg's "amd64"/"arm64" matches Quarto's naming exactly.
+RUN ARCH=$(dpkg --print-architecture) \
+    && curl -fsSL \
+        "https://github.com/quarto-dev/quarto-cli/releases/download/v${QUARTO_VERSION}/quarto-${QUARTO_VERSION}-linux-${ARCH}.deb" \
         -o /tmp/quarto.deb \
     && apt-get update \
     && apt-get install -y --no-install-recommends /tmp/quarto.deb \
