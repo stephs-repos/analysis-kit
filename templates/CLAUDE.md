@@ -20,7 +20,7 @@ This project was scaffolded from [analysis-kit](https://github.com/{{GITHUB_USER
 Every quantitative claim in a memo, vignette, or stakeholder communication must:
 
 1. Have an `F-NNN` id in `analysis/output/findings.json`.
-2. Have a `code_path` that resolves and a `data_contract` that declares its filters.
+2. Have a `code_path` that resolves, an `input` block declaring its source(s) and columns, and a `reproducibility` block declaring its filters and post-filter row count.
 3. Pass `python analysis/validate.py` with exit 0.
 
 Findings have `counterfactual_tag`: `OBSERVED` (measured, requires `measurement_ref`), `PLAUSIBLE` (informed estimate, supporting pattern named), or `WEAK` (rephrase or remove).
@@ -31,7 +31,7 @@ Findings have `counterfactual_tag`: `OBSERVED` (measured, requires `measurement_
 - Output: `analysis/output/`. Findings: `analysis/output/findings.json`.
 - Filters: `analysis/_decisions.py`. Function `DR_NNN(df) -> df` per `DECISIONS.md` entry.
 - Schemas: `analysis/schemas.py`. Pandera-based.
-- Vignettes: `vignettes/NN_*.qmd` (Quarto). Render with `quarto render vignettes/NN_topic.qmd`.
+- Vignettes (`--full` tier only): `vignettes/NN_*.qmd` (Quarto). Render with `quarto render vignettes/NN_topic.qmd`. (A `--minimum`-tier project has no `vignettes/` directory.)
 
 ## Memory — caveat carriers
 
@@ -41,7 +41,7 @@ When in doubt, read `memory/data_quality_caveats.md` before computing any aggreg
 
 ## Don't
 
-- Don't apply `--no-verify` to bypass hooks. If a hook is wrong, fix or remove it deliberately (visible in git).
+- Don't try to bypass the validation hooks. Note `git commit --no-verify` only skips git's *native* pre-commit hooks, not analysis-kit's Claude Code hooks — the commit gate still fires. If a hook is genuinely wrong, remove it from `.claude/settings.json` deliberately (visible in git).
 - Don't compute aggregates without applying the relevant DR-NNN filters from `_decisions.py`.
 - Don't add an `OBSERVED` claim without a `measurement_ref`.
 - Don't rename or delete entries in `DECISIONS.md` or `ANALYSIS_BACKLOG.md` — mark `superseded` or `dropped`.

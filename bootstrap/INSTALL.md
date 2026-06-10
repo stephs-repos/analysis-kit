@@ -4,7 +4,7 @@
 
 - Python 3.11+
 - bash (POSIX-portable)
-- `jq` (for hooks; install via `apt install jq` / `brew install jq`)
+- `jq` (for hooks; install via `apt install jq` / `brew install jq`). The commit gate fails *closed* without it — a missing `jq` blocks commits with an explanation rather than letting an unverified one through.
 - git
 - Optional: [Quarto](https://quarto.org) for vignette rendering (`--full` tier)
 - Optional: `pipx install datasette` for `--full` exploration UI
@@ -21,7 +21,7 @@ Two paths — pick one.
 
 ### Option A: VS Code dev container (recommended)
 
-The repo ships `.devcontainer/`. Open the folder in VS Code, accept "Reopen in Container", wait for the build. Post-create installs the pinned dev environment and runs `pytest` automatically. If you see `35 passed` at the end, you're ready. Verified-working versions are checked in at `.devcontainer/requirements-dev.txt`.
+The repo ships `.devcontainer/`. Open the folder in VS Code, accept "Reopen in Container", wait for the build. Post-create installs the pinned dev environment and runs `pytest` automatically. If you see all tests pass at the end (`N passed`, with no failures), you're ready. Verified-working versions are checked in at `.devcontainer/requirements-dev.txt`.
 
 ### Option B: local Python
 
@@ -60,4 +60,4 @@ This lists remaining `{{MUST_CUSTOMIZE}}` markers — places the templates expec
 
 ## Upgrade an existing project
 
-Migration scripts (when needed) live in `bootstrap/migrations/<from>_to_<to>.py`. v0.1 has none — first migration ships with v0.2.
+Migration scripts (when needed) live in `bootstrap/migrations/<from>_to_<to>.py`. None are required through v1.0.0 — the pre-1.0 schema changes (including the v1.0 `data_contract` → `input`/`reproducibility` split) landed before the framework's first release, so there were no downstream projects to migrate.

@@ -32,7 +32,7 @@ What question this answers. Who's asking. Why now.
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Load relevant subset (filtered per data_contract).
+# Load relevant subset (filtered per the finding's reproducibility.filters).
 # df = pd.read_csv("../reference/raw-data/...")
 # Apply DR-NNN filters from analysis/_decisions.py.
 # Render the chart.

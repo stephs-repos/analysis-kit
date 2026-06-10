@@ -10,7 +10,7 @@ type: project
 
 - **Rule:** what to do (e.g., "mask 0 to NaN before aggregation")
 - **Why:** why it matters (e.g., "0 is a 'not collected' sentinel, not 'absent'; aggregations otherwise silently understate")
-- **How to apply:** mechanism (e.g., "use `DR-001` from `analysis/_decisions.py`; declare in `data_contract.filters`")
+- **How to apply:** mechanism (e.g., "use `DR-001` from `analysis/_decisions.py`; declare in `reproducibility.filters`")
 - **Severity:** mandatory | recommended | informational
 - **Discovery:** when/how the caveat was found (commit, finding id, conversation)
 

@@ -1,29 +1,31 @@
 #!/usr/bin/env bash
-# PostToolUse hook on Edit/Write — soft-warn if a file in analysis/ was changed
-# without findings.json being touched in the last N commits.
+# PostToolUse hook on file edits — nudge Claude when an analysis compute script
+# is edited, to re-validate and keep findings.json in sync.
 #
-# This is a NUDGE, not a block. Output goes to stdout (Claude sees it).
-# Helps catch the "wrote analysis script, forgot to register a finding" case.
+# This is an advisory NUDGE, never a block. PostToolUse stdout on exit 0 goes
+# only to the transcript (Claude doesn't see it), so the message is emitted as
+# hookSpecificOutput.additionalContext, which IS added to Claude's context.
 #
-# Cost target: <500ms. Bounded git log; no replay.
+# Cost target: <200ms.
 
-set -e
-
-cd "${CLAUDE_PROJECT_DIR:-.}"
+set -uo pipefail
 
 input=$(cat)
-file_path=$(echo "$input" | jq -r '.tool_input.file_path // ""')
 
-# Only nudge for files in analysis/ that aren't infra
-case "$file_path" in
-  *analysis/[0-9][0-9]_*.py)
-    # Did the most recent 3 commits touch findings.json?
-    if git rev-parse --git-dir >/dev/null 2>&1; then
-      recent_findings_changes=$(git log -3 --name-only --pretty=format: -- analysis/output/findings.json 2>/dev/null | grep -c findings.json || true)
-      if [ "${recent_findings_changes:-0}" -eq 0 ]; then
-        echo "(analysis-kit nudge: edited $file_path — consider whether a finding should be registered or updated in analysis/output/findings.json)"
-      fi
-    fi
+# Advisory only — silently skip if jq isn't available.
+command -v jq >/dev/null 2>&1 || exit 0
+
+file_path=$(printf '%s' "$input" | jq -r '.tool_input.file_path // ""')
+[ -n "$file_path" ] || exit 0
+
+# Fire only for analysis compute scripts: numbered steps (analysis/NN_*.py) or
+# the decisions module. The leading "/" and "*/analysis/" anchor at a path
+# boundary so a directory like "reanalysis/" does not trigger.
+case "/$file_path" in
+  */analysis/[0-9][0-9]_*.py|*/analysis/_decisions.py)
+    msg="You edited ${file_path}. If this changes how a finding's value is computed (or a DR-NNN filter), re-run \`python analysis/validate.py\` and update the affected findings via _findings.register_computed()/update() so findings.json stays in sync."
+    jq -n --arg m "$msg" \
+      '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $m}}'
     ;;
 esac
 
