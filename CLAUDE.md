@@ -38,7 +38,7 @@ Default to fixing in the downstream project first. Only promote to the template 
 ## Conventions
 
 - Python 3.11+. Pandera for column validation, pytest for self-tests.
-- `bootstrap/new-project.sh` is bash, POSIX-portable. No Python at scaffold time (chicken-and-egg).
+- `bootstrap/new-project.sh` is bash, POSIX-portable. It uses `python3` (stdlib only) for safe token substitution — values are passed via the environment into a quoted heredoc, never interpolated into source, so a project name or author can't inject code. No third-party Python deps at scaffold time.
 - Hooks in `templates/.claude/hooks/` are bash. `jq` is the only non-default dep — document it in `bootstrap/INSTALL.md`.
 - Don't add an `npm`/`node` runtime to this repo. Quarto is a binary; Datasette is `pipx install`.
 

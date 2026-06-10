@@ -1,6 +1,7 @@
 # analysis-kit dev dependencies — pinned to a verified-working set.
 #
-# Verified 2026-05-06 on Python 3.13.13: 35/35 self-tests pass.
+# Verified on Python 3.13: the full self-test suite passes (see CI for the
+# current count across 3.11/3.12/3.13).
 #
 # Update procedure:
 #   1. Build container, run pytest
