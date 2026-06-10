@@ -46,7 +46,7 @@ Agentic AI's reputation for hallucination is the audience's primary objection. O
 
 1. **OBSERVED becomes the dominant tag.** If >60% of your tags are OBSERVED on an early-stage project, the discipline has decayed. Real analytical work has plenty of plausible inferences.
 2. **WEAK never appears.** If you never produce a WEAK claim, you're not noticing the soft ones — they're getting smuggled in as PLAUSIBLE or OBSERVED.
-3. **`measurement_ref` points to a non-existent line.** Validate.py checks the file exists; it does not check the line range is meaningful. Reviewers should spot-check.
+3. **`measurement_ref` points to a non-existent file or line.** Validate.py checks only that an `OBSERVED` finding *has* a `measurement_ref` — it does not verify the file or line range exists. Reviewers should spot-check.
 4. **The pattern named for PLAUSIBLE is hand-wavy.** "Best practice" is not a pattern. "Commit a13b2c" is a pattern. "F-007" is a pattern.
 
 ## When in doubt, soften

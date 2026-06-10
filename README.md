@@ -51,17 +51,17 @@ You get Python 3.13, pinned `pandas`/`pandera`/`numpy`/`pytest`, Quarto, `jq`, a
 Tiers:
 
 - `--minimum` — CLAUDE.md, six live-docs, `validate.py`, `memory/`, `.claude/hooks/`. Pandera in deps.
-- `--full` — adds Quarto vignette pipeline, `_quarto.yml`, optional Datasette UI.
+- `--full` — adds the Quarto vignette pipeline and `_quarto.yml`.
 
 ## What you get
 
 | Contract | File | Purpose |
 |---|---|---|
 | Trust gate | `analysis/validate.py` | Exit 0 = trustworthy. Stop hook fires `--fast`; commit hook blocks on full. |
-| Claims ledger | `analysis/output/findings.json` | Every claim has `F-NNN` id, `code_path`, `data_contract`, `caveats`, `counterfactual_tag`, `measurement_ref`. |
+| Claims ledger | `analysis/output/findings.json` | Every claim has `F-NNN` id, `code_path`, an `input` + `reproducibility` block, `caveats`, `counterfactual_tag`, `measurement_ref`. |
 | Live docs | `live-docs/*.md` | TRUST_MEMO, DATA_PROFILE, DECISIONS, ANALYSIS_BACKLOG, TOOLING, METHODOLOGY_LOG — peers, all amendable. |
 | Caveat carriers | `memory/*.md` | Preconditions the agent reads before aggregating. Templates declare shape, projects fill content. |
-| Hooks | `.claude/hooks/` | validate-on-stop (fast), block-unvalidated-commit (full), findings-coverage-on-edit (soft warn). |
+| Hooks | `.claude/hooks/` | validate-on-stop (fast, blocks the turn on red with a loop guard), block-unvalidated-commit (full, fails closed), findings-coverage-on-edit (nudge). |
 
 ## What this is *not*
 
@@ -78,4 +78,4 @@ In one sentence: **constrain the agent's improvisational surface so deterministi
 
 ## Status
 
-**v0.2.0.** The five contracts are stable; tier system, Pandera integration, and 35 self-tests pass. Validated end-to-end against a 35-finding production project (caught 3 stale findings the project's own validator hadn't flagged). Quarto integration shipped; Datasette deferred to v0.3.
+**v1.0.0.** The contracts are stable. A finding declares its data dependency in an `input` block (sources with pinned content hashes, columns) and a `reproducibility` block (filters, post-filter row count); values can be registered by execution (`register_computed`) so a number can't drift from the code that produced it. The self-test suite passes in CI across Python 3.11–3.13. Validated end-to-end against a 35-finding production project (caught 3 stale findings the project's own validator hadn't flagged). Quarto integration shipped; Datasette deferred to a later release.
