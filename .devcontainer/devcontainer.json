@@ -6,7 +6,8 @@
   },
 
   "features": {
-    "ghcr.io/devcontainers/features/github-cli:1": {}
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers-extra/features/claude-code:2": {}
   },
 
   "postCreateCommand": "bash .devcontainer/post-create.sh",
@@ -44,5 +45,5 @@
 
   "remoteUser": "vscode",
 
-  "_comment": "Pinned to verified-working versions: Python 3.13, pandas 2.3.3, pandera 0.31.1, numpy 2.3.5, pytest 9.0.3, Quarto 1.6.40. 35/35 self-tests pass on this set."
+  "_comment": "Pinned to verified-working versions: Python 3.13, pandas 2.3.3, pandera 0.31.1, numpy 2.3.5, pytest 9.0.3, Quarto 1.6.40. The full self-test suite passes on this set (see CI for the count)."
 }
