@@ -15,8 +15,9 @@ with the code that produces it, and a validator re-runs that code and checks the
 number still comes out. The **exit code of `validate.py` is the source of truth**,
 not the prose around it.
 
-Think of it as **double-entry bookkeeping for analysis**: the memo is one entry,
-the re-runnable finding is the other, and they have to agree.
+Think of it as **double-entry bookkeeping for analysis**: the number as you write
+it in a *memo* (any stakeholder-facing report or message) is one entry, the
+re-runnable finding is the other, and `validate.py` checks they agree.
 
 ## The cast, in one picture
 
