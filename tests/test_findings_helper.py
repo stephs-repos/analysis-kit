@@ -31,7 +31,8 @@ register(
     code_path='analysis/02_profile.py:median_session_rating',
     value=4.0,
     n=10,
-    data_contract={'source': 'x.csv', 'filters': [], 'columns': ['c'], 'row_count_after_filter': 10},
+    input={'sources': [{'path': 'x.csv'}], 'columns': ['c']},
+    reproducibility={'filters': [], 'row_count_after_filter': 10},
     caveats=[],
     counterfactual_tag='PLAUSIBLE',
 )
@@ -56,7 +57,8 @@ register(
     check_type='scalar',
     code_path='analysis/02_profile.py:fn',
     value=4.0,
-    data_contract={'source': 'x.csv', 'filters': [], 'columns': ['c'], 'row_count_after_filter': 1},
+    input={'sources': [{'path': 'x.csv'}], 'columns': ['c']},
+    reproducibility={'filters': [], 'row_count_after_filter': 1},
     caveats=[],
     counterfactual_tag='OBSERVED',
 )
@@ -81,8 +83,8 @@ f = register_computed(
     id='F-001', claim='median', check_type='scalar',
     code_path='analysis/02_profile.py:median_session_rating',
     value=999.0,  # a lie — must be overwritten by the computed result
-    data_contract={'source':'reference/raw-data/sessions.csv','filters':[],
-                   'columns':['session_rating'],'row_count_after_filter':0},
+    input={'sources':[{'path':'reference/raw-data/sessions.csv'}],'columns':['session_rating']},
+    reproducibility={'filters':[]},
     caveats=[], counterfactual_tag='WEAK')
 print('VALUE', f['value'])
 """
@@ -91,8 +93,8 @@ print('VALUE', f['value'])
     assert "VALUE 4.0" in res.stdout  # computed median, not the 999 lie
     findings = json.loads((p / "analysis" / "output" / "findings.json").read_text())
     assert findings[0]["value"] == 4.0
-    assert findings[0]["data_contract"]["row_count_after_filter"] == 10  # actual count
-    assert "source_sha256" in findings[0]["data_contract"]
+    assert findings[0]["reproducibility"]["row_count_after_filter"] == 10  # actual count
+    assert "sha256" in findings[0]["input"]["sources"][0]
 
 
 def test_register_computed_result_actually_replays(project_with_fixture: Path) -> None:
@@ -108,8 +110,8 @@ from analysis._findings import register_computed
 register_computed(
     id='F-001', claim='mean', check_type='scalar',
     code_path='analysis/02_profile.py:mean_rating',
-    data_contract={'source':'reference/raw-data/sessions.csv','filters':[],
-                   'columns':['session_rating'],'row_count_after_filter':0},
+    input={'sources':[{'path':'reference/raw-data/sessions.csv'}],'columns':['session_rating']},
+    reproducibility={'filters':[]},
     caveats=[], counterfactual_tag='WEAK')
 """
     res = _run_in_project(p, code)
@@ -125,7 +127,7 @@ import sys; sys.path.insert(0, '.')
 from analysis._findings import register_computed
 register_computed(id='F-001', claim='x', check_type='quote_provenance',
     code_path='analysis/02_profile.py:fn',
-    data_contract={'source':'x.csv','filters':[],'columns':[],'row_count_after_filter':0},
+    input={'sources':[{'path':'x.csv'}],'columns':[]}, reproducibility={'filters':[]},
     caveats=[], counterfactual_tag='WEAK')
 """
     res = _run_in_project(scaffolded_project, code)
@@ -138,11 +140,11 @@ def test_next_id_increments(scaffolded_project: Path) -> None:
     # Pre-seed
     (p / "analysis" / "output" / "findings.json").write_text(json.dumps([
         {"id": "F-001", "claim": "x", "check_type": "scalar", "code_path": "a:b",
-         "data_contract": {"source": "x", "filters": [], "columns": [], "row_count_after_filter": 0},
+         "input": {"sources": [{"path": "x"}], "columns": []}, "reproducibility": {"filters": [], "row_count_after_filter": 0},
          "caveats": [], "counterfactual_tag": "WEAK",
          "revision_history": [{"timestamp": "x", "reason": "x"}]},
         {"id": "F-002", "claim": "x", "check_type": "scalar", "code_path": "a:b",
-         "data_contract": {"source": "x", "filters": [], "columns": [], "row_count_after_filter": 0},
+         "input": {"sources": [{"path": "x"}], "columns": []}, "reproducibility": {"filters": [], "row_count_after_filter": 0},
          "caveats": [], "counterfactual_tag": "WEAK",
          "revision_history": [{"timestamp": "x", "reason": "x"}]},
     ]))
@@ -169,13 +171,15 @@ from analysis._findings import register
 register(
     id='F-001', claim='zero sentinel present', check_type='boolean',
     code_path='analysis/02_profile.py:has_zero', value=True,
-    data_contract={'source': 'x.csv', 'filters': [], 'columns': ['c'], 'row_count_after_filter': 10},
+    input={'sources': [{'path': 'x.csv'}], 'columns': ['c']},
+    reproducibility={'filters': [], 'row_count_after_filter': 10},
     caveats=[], counterfactual_tag='OBSERVED', measurement_ref='analysis/02_profile.py:has_zero',
 )
 register(
     id='F-002', claim='qualitative judgement', check_type='manual',
     code_path='analysis/02_profile.py:L1-L5',
-    data_contract={'source': 'x.csv', 'filters': [], 'columns': ['c'], 'row_count_after_filter': 10},
+    input={'sources': [{'path': 'x.csv'}], 'columns': ['c']},
+    reproducibility={'filters': [], 'row_count_after_filter': 10},
     caveats=[], counterfactual_tag='WEAK',
 )
 """
@@ -193,7 +197,8 @@ from analysis._findings import register
 register(
     id='F-001', claim='x', check_type='scalar',
     code_path='analysis/02_profile.py', value=4.0,
-    data_contract={'source': 'x.csv', 'filters': [], 'columns': ['c'], 'row_count_after_filter': 1},
+    input={'sources': [{'path': 'x.csv'}], 'columns': ['c']},
+    reproducibility={'filters': [], 'row_count_after_filter': 1},
     caveats=[], counterfactual_tag='WEAK',
 )
 """
@@ -210,7 +215,8 @@ from analysis._findings import register
 register(
     id='F-001', claim='x', check_type='scalar',
     code_path='analysis/02_profile.py:L1-L10', value=4.0,
-    data_contract={'source': 'x.csv', 'filters': [], 'columns': ['c'], 'row_count_after_filter': 1},
+    input={'sources': [{'path': 'x.csv'}], 'columns': ['c']},
+    reproducibility={'filters': [], 'row_count_after_filter': 1},
     caveats=[], counterfactual_tag='WEAK',
 )
 """
@@ -227,7 +233,8 @@ from analysis._findings import register
 register(
     id='F-001', claim='x', check_type='scalar',
     code_path='analysis/02_profile.py:fn',
-    data_contract={'source': 'x.csv', 'filters': [], 'columns': ['c'], 'row_count_after_filter': 1},
+    input={'sources': [{'path': 'x.csv'}], 'columns': ['c']},
+    reproducibility={'filters': [], 'row_count_after_filter': 1},
     caveats=[], counterfactual_tag='WEAK',
 )
 """
@@ -246,7 +253,8 @@ from analysis._findings import register
 register(
     id='F-001', claim='x', check_type='scalar',
     code_path='analysis/02_profile.py:fn', value=float('nan'),
-    data_contract={'source': 'x.csv', 'filters': [], 'columns': ['c'], 'row_count_after_filter': 1},
+    input={'sources': [{'path': 'x.csv'}], 'columns': ['c']},
+    reproducibility={'filters': [], 'row_count_after_filter': 1},
     caveats=[], counterfactual_tag='WEAK',
 )
 """
@@ -264,7 +272,8 @@ from analysis._findings import register, update
 register(
     id='F-001', claim='v1', check_type='scalar',
     code_path='analysis/02_profile.py:fn', value=1.0,
-    data_contract={'source': 'x', 'filters': [], 'columns': ['c'], 'row_count_after_filter': 1},
+    input={'sources': [{'path': 'x'}], 'columns': ['c']},
+    reproducibility={'filters': [], 'row_count_after_filter': 1},
     caveats=[], counterfactual_tag='WEAK',
 )
 update('F-001', reason='value corrected', value=2.0, claim='v2')

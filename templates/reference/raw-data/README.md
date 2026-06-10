@@ -2,7 +2,7 @@
 
 Drop your raw data files here.
 
-The framework expects this directory to exist; scripts in `analysis/` and entries in `findings.json`'s `data_contract.source` field reference paths under `reference/raw-data/`.
+The framework expects this directory to exist; scripts in `analysis/` and the `input.sources` field of `findings.json` entries reference paths under `reference/raw-data/`.
 
 ## What goes here
 
@@ -30,4 +30,4 @@ For private or large data, leave the gitignore as-is and distribute through your
 
 ## On data refreshes
 
-When new versions of source files arrive, validate.py's `data_contract.row_count_after_filter` field is your early-warning system: if the post-filter row count changes after you swap in a new file, validate fails before you publish anything that depends on the old shape. See the user guide's "common workflows → 'I just got new raw data — what do I do?'" section.
+When new versions of source files arrive, validate.py's drift signals are your early-warning system: the pinned `input.sources[].sha256` fails immediately if a file's bytes change, and `reproducibility.row_count_after_filter` fails if the post-filter row count shifts — both before you publish anything that depends on the old shape. See the user guide's "common workflows → 'I just got new raw data — what do I do?'" section.

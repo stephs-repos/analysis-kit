@@ -22,8 +22,8 @@ Index skill for the analysis-kit workflow. The skill set is deliberately small �
        (initial setup is complete; analysis can begin)
                 ↓
   3. /akit-finding "<hypothesis>"     register one finding with code path,
-                                      data_contract, caveats, counterfactual
-                                      tag — workhorse, used continuously
+                                      input + reproducibility, caveats,
+                                      counterfactual tag — workhorse, continuous
 ```
 
 ## The skills

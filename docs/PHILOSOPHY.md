@@ -14,7 +14,7 @@ analysis-kit is built on the bet that *constraining the agent's improvisational 
 
 ### 2. Every claim has provenance
 
-A claim with no F-NNN id, no `code_path`, no `data_contract`, and no `counterfactual_tag` is not a claim — it's a vibe. The claims ledger (`findings.json`) is the unit of trust, not the prose around it. Memos cite ids; vignettes cite ids; PR descriptions cite ids.
+A claim with no F-NNN id, no `code_path`, no `input`/`reproducibility` blocks, and no `counterfactual_tag` is not a claim — it's a vibe. The claims ledger (`findings.json`) is the unit of trust, not the prose around it. Memos cite ids; vignettes cite ids; PR descriptions cite ids.
 
 ### 3. Caveats travel with the data, not with the human
 

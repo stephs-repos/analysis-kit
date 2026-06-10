@@ -249,7 +249,7 @@ This is implemented as five rules:
 
 1. **Every claim has an `F-NNN` id** in `analysis/output/findings.json`. The id is what you cite — in memos, in vignettes, in conversations.
 2. **Every finding has a `code_path`** that points to a function. Running the function reproduces the claim's value.
-3. **Every finding has a `data_contract`** declaring which file, which filters (DR-NNN ids), which columns, and how many rows after filtering. This makes the inputs to the function explicit.
+3. **Every finding has an `input` block** (which source files + columns) and a **`reproducibility` block** (which DR-NNN filters, and how many rows after filtering). This makes the inputs to the function explicit.
 4. **`validate.py` replays every finding** by reading the source, applying the filters, calling the function, and comparing the result to the stored value.
 5. **Exit code is the truth.** If `python analysis/validate.py` exits 0, all claims are reproducible. If it exits non-zero, something is broken and you don't ship the memo.
 
@@ -320,12 +320,12 @@ Replay is the heart of the trust contract. For each finding, it reads the source
                               │
                               ▼
      ┌────────────────────────────────────────────┐
-     │  data_contract block:                      │
+     │  input + reproducibility blocks:           │
      │  ─────────────────────                     │
-     │  source: "raw-data/sessions.csv"           │
-     │  filters: ["DR-001", "DR-003"]             │
-     │  columns: ["session_rating"]               │
-     │  row_count_after_filter: 312               │
+     │  input.sources: [{path: "…/sessions.csv"}] │
+     │  input.columns: ["session_rating"]         │
+     │  reproducibility.filters: ["DR-001","DR-003"]│
+     │  reproducibility.row_count_after_filter: 312│
      └────────────────────────────────────────────┘
                               │
                               ▼
@@ -415,7 +415,7 @@ The basics. Without these, nothing else means anything.
 
 | Check | What it protects against |
 |---|---|
-| Every finding has `id`, `claim`, `check_type`, `code_path`, `data_contract`, `caveats`, `counterfactual_tag`, `revision_history` | Missing data prevents downstream layers from running |
+| Every finding has `id`, `claim`, `check_type`, `code_path`, `input`, `reproducibility`, `caveats`, `counterfactual_tag`, `revision_history` | Missing data prevents downstream layers from running |
 | `id` matches `F-NNN[a-z]?` | Inconsistent referencing across documents |
 | Every `id` is unique | Two findings with the same id silently overwrite each other |
 | `check_type` is in the valid set | Typos that prevent dispatch |
@@ -438,7 +438,7 @@ The "what data was this computed from?" layer. Most of the silent-drift protecti
 
 | Check | What it protects against |
 |---|---|
-| `data_contract.source` exists on disk | Data files moved or deleted |
+| `input.sources` exist on disk | Data files moved or deleted |
 | Each `DR-NNN` in `filters` resolves to a function in `_decisions.py` | Renamed or deleted decision functions |
 | `len(df_after_filters) == row_count_after_filter` | **Silent data drift — the most important check.** A new data refresh changes the row count? Caught. A filter logic change includes/excludes different rows? Caught. |
 
@@ -477,10 +477,12 @@ register(
     code_path="analysis/02_profile.py:median_session_rating",
     value=4.2,
     n=312,
-    data_contract={
-        "source": "reference/raw-data/sessions.csv",
-        "filters": ["DR-001"],
+    input={
+        "sources": [{"path": "reference/raw-data/sessions.csv"}],
         "columns": ["session_rating"],
+    },
+    reproducibility={
+        "filters": ["DR-001"],
         "row_count_after_filter": 312,
     },
     ...
@@ -618,20 +620,20 @@ If you remember nothing else: **`row_count_after_filter` is the highest-value fi
 A finding is one entry in `analysis/output/findings.json`. Don't edit that file by hand — use the helper:
 
 ```python
-from analysis._findings import register, next_id
+from analysis._findings import register_computed, next_id
 
-register(
+register_computed(  # runs the function and stamps value, row count, and source hash
     id=next_id(),
     claim="median session rating is 4.2 (n=312)",
     check_type="scalar",
     code_path="analysis/02_profile.py:median_session_rating",
-    value=4.2,
     n=312,
-    data_contract={
-        "source": "reference/raw-data/sessions.csv",
-        "filters": ["DR-001"],
+    input={
+        "sources": [{"path": "reference/raw-data/sessions.csv"}],
         "columns": ["session_rating"],
-        "row_count_after_filter": 312,
+    },
+    reproducibility={
+        "filters": ["DR-001"],
     },
     caveats=["zero_sentinel_masked"],
     counterfactual_tag="OBSERVED",
@@ -640,14 +642,18 @@ register(
 )
 ```
 
+(`register()` is the lower-level form — you pass `value=` yourself. Prefer
+`register_computed()`: it runs `code_path` and stores the *returned* value, so
+the number can't drift from the code that produced it.)
+
 The function `median_session_rating` lives in `analysis/02_profile.py` and looks like this:
 
 ```python
 def median_session_rating(df: pd.DataFrame) -> float:
-    """Median of session_rating after filters declared in data_contract.
+    """Median of session_rating after filters declared in reproducibility.
 
     NOTE: this function does NOT apply filters. validate.py applies the
-    filters declared in data_contract.filters before calling.
+    filters declared in reproducibility.filters before calling.
     """
     return float(df["session_rating"].median())
 ```
@@ -677,25 +683,30 @@ When in doubt, pick the most specific type that fits. `manual` is the escape hat
 
 See [`COUNTERFACTUAL_TAGGING.md`](COUNTERFACTUAL_TAGGING.md) for the full rules.
 
-### `data_contract` — the most important field
+### `input` and `reproducibility` — the two most important blocks
+
+A finding declares its data dependency in two blocks: `input` (what the claim
+is *about*) and `reproducibility` (how to re-derive it).
 
 ```json
-"data_contract": {
-  "source": "reference/raw-data/sessions.csv",
+"input": {
+  "sources": [{"path": "reference/raw-data/sessions.csv", "sha256": "9f86d08..."}],
+  "columns": ["session_rating"]
+},
+"reproducibility": {
   "filters": ["DR-001"],
-  "columns": ["session_rating"],
   "row_count_after_filter": 312
 }
 ```
 
 | Field | What it does |
 |---|---|
-| `source` | Relative path to the data file. validate.py reads this. |
-| `filters` | Ordered list of DR-NNN ids. Each must have a function in `analysis/_decisions.py`. validate.py applies them in order. |
-| `columns` | The columns this finding depends on. Schema-drift detection (in v0.3+) uses this. |
-| `row_count_after_filter` | Integer. validate.py computes `len(df)` after applying filters and fails if it doesn't match. **This is the early-warning system for silent data drift.** |
+| `input.sources` | List of `{path, sha256}` input files. `register()` stamps the hash; validate fails if a file's bytes change since the finding was recorded, and all findings on a path must agree on its hash. A replayable finding has exactly one source (multi-source → `manual`). |
+| `input.columns` | The columns this finding depends on. Documentary; lock a Pandera schema with `schemas.snapshot()` for real shape/type/range drift detection. |
+| `reproducibility.filters` | Ordered list of DR-NNN ids. Each must have a function in `analysis/_decisions.py`. validate.py applies them in order. |
+| `reproducibility.row_count_after_filter` | Integer. validate.py computes `len(df)` after applying filters and fails if it doesn't match. **An early-warning system for silent data drift, alongside the source hash.** |
 
-The `row_count_after_filter` field is the single most valuable data_contract field. Example: if someone changes a DR-NNN function from "exclude rows where any BPN is zero" to "exclude rows where all BPNs are zero" without updating the documentation, validate.py catches it because the row count after filter changes.
+`row_count_after_filter` and `input.sources[].sha256` are the live drift signals. Example: if someone changes a DR-NNN function from "exclude rows where any BPN is zero" to "exclude rows where all BPNs are zero" without updating the documentation, validate.py catches it because the row count after filter changes; and if the raw file itself is swapped, the source hash catches it immediately.
 
 ### `caveats` — references to memory entries
 
@@ -733,11 +744,10 @@ def DR_001(df: pd.DataFrame) -> pd.DataFrame:
     return df.assign(session_rating=df["session_rating"].where(df["session_rating"] != 0))
 ```
 
-Step 3: Reference in `data_contract.filters` for any finding that depends on it:
+Step 3: Reference in `reproducibility.filters` for any finding that depends on it:
 
 ```python
-data_contract={
-    "source": "...",
+reproducibility={
     "filters": ["DR-001"],
     ...
 }
@@ -786,7 +796,7 @@ The most important file is `memory/data_quality_caveats.md`. Whenever you discov
 
 - **Rule:** Mask 0 to NaN before mean/median.
 - **Why:** 0 means "not collected" in this column, not "absent" — aggregations otherwise silently understate.
-- **How to apply:** Use `DR-001` from `analysis/_decisions.py`. Declare in `data_contract.filters`.
+- **How to apply:** Use `DR-001` from `analysis/_decisions.py`. Declare in `reproducibility.filters`.
 - **Severity:** mandatory
 - **Discovery:** F-007 found 26 rows of all-zero records, all with empty qual content; verified as analysis-failure sentinel by audit.
 ```
@@ -901,32 +911,36 @@ python analysis/validate.py --strict
 
 ### What gets checked (fast mode)
 
-- `findings.json` parses as JSON and is an array
-- Every finding has the required fields (`id`, `claim`, `check_type`, `code_path`, `data_contract`, `caveats`, `counterfactual_tag`, `revision_history`)
+- `findings.json` parses as JSON and is an array of objects (malformed input fails gracefully, never with a traceback)
+- Every finding has the required fields (`id`, `claim`, `check_type`, `code_path`, `input`, `reproducibility`, `caveats`, `counterfactual_tag`, `revision_history`)
 - Every `id` matches `F-NNN` or `F-NNNa` (alpha suffix optional, for corroborating variants)
 - Every `id` is unique
 - Every `check_type` is in the valid enum
+- The conditional payload is present for the check_type (`value` for scalar/proportion/rate/boolean, non-empty `distribution`, non-empty `matrix`, `quote`+`source_locator`) — so no finding can replay vacuously
 - Every `counterfactual_tag` is in `{OBSERVED, PLAUSIBLE, WEAK}`
 - Every `OBSERVED` finding has a non-empty `measurement_ref`
-- Every `code_path` resolves to an existing file
+- Every `code_path` resolves; replayable check_types must name a runnable function (a line reference can't verify a value)
 - Every `caveats` field is a list (warns if empty)
-- `data_contract` has the four required fields
+- `input` has a non-empty `sources` list and `columns`; a replayable finding has exactly one source
+- `reproducibility` has `filters` (and `row_count_after_filter` for replayable types)
+- Any custom `tolerance` is within the cap (abs ≤ 1.0, rel ≤ 0.1) and warns
+- Findings sharing a source agree on its `sha256`; unpinned sources warn (and fail under `--strict`)
 - Every F-NNN cited in `TRUST_MEMO.md` exists in findings.json (no orphans)
 - `revision_history` is non-empty for every finding
 - (Warning) If more than 60% of findings are `OBSERVED`, the discipline may be decaying
 
 ### What gets checked (full mode adds replay)
 
-For every finding (except `manual` and `quote_provenance` which have their own paths):
+If `analysis/output/schema-lock.json` exists, each locked source is re-validated against its Pandera schema (shape/type/range drift). Then, for every finding (except `manual` and `quote_provenance` which have their own paths):
 
-1. Read `data_contract.source`
-2. Apply `data_contract.filters` (each is a function in `analysis/_decisions.py`)
-3. Verify `len(df) == data_contract.row_count_after_filter` (catches data drift)
+1. Read the single `input.sources[0]`; if its `sha256` is pinned, verify the file still matches (catches mutated/reordered data)
+2. Apply `reproducibility.filters` (each is a function in `analysis/_decisions.py`)
+3. Verify `len(df) == reproducibility.row_count_after_filter` (catches row-count drift)
 4. Import the function at `code_path`
 5. Call it with the filtered DataFrame
 6. Compare the result to the stored `value` / `distribution` / `matrix`
 
-Float comparison uses `math.isclose(rel_tol=1e-9, abs_tol=1e-6)`. If your domain needs tighter tolerance, override `_TOL_ABS` and `_TOL_REL` in your project's `validate.py`.
+Float comparison uses `math.isclose(rel_tol=1e-9, abs_tol=1e-6)`. A finding can override this with a `tolerance: {abs, rel}` block (capped at abs ≤ 1.0, rel ≤ 0.1, and surfaced as a warning); for a project-wide change, override `_TOL_ABS` and `_TOL_REL` in your project's `validate.py`.
 
 ### Adding project-specific checks
 
@@ -945,7 +959,7 @@ def project_specific_checks(findings: list[dict]) -> None:
     # Every BPN finding should reference DR-001
     for f in findings:
         if "bpn" in f.get("claim", "").lower():
-            if "DR-001" not in f.get("data_contract", {}).get("filters", []):
+            if "DR-001" not in f.get("reproducibility", {}).get("filters", []):
                 fail("project:bpn_must_use_DR_001",
                      f"{f['id']} mentions BPN but doesn't apply DR-001")
 ```
@@ -1013,7 +1027,7 @@ This produces both HTML and PDF (configured in `_quarto.yml`). The HTML is `embe
 1. Drop the file in `reference/raw-data/`.
 2. Run `python analysis/01_inspect_raw.py` to print shape, dtypes, nulls, head/tail.
 3. Open Claude Code (or your editor) and update `live-docs/DATA_PROFILE.md` with the new column information.
-4. Run `python analysis/validate.py` in full mode. **Any finding whose `data_contract.row_count_after_filter` no longer matches is a real signal** — either the data shape changed unexpectedly, or your filters need updating.
+4. Run `python analysis/validate.py` in full mode. **Any finding whose `reproducibility.row_count_after_filter` (or pinned source `sha256`) no longer matches is a real signal** — either the data shape changed unexpectedly, or your filters need updating.
 5. If validate fails on row counts: investigate (don't just update the field). Maybe the new data is missing a column you assumed was there. Maybe rows got duplicated. The framework's job is to make this visible.
 6. Once you understand the change, update `findings.json` (via `_findings.update()`) with the new values and a `reason` explaining why.
 
@@ -1029,8 +1043,8 @@ This produces both HTML and PDF (configured in `_quarto.yml`). The HTML is `embe
 
 1. Decide the `check_type` (see the [check_type table](#check_type--pick-the-right-one)).
 2. Write a function in `analysis/02_profile.py` (or a new `analysis/NN_*.py` file) that takes a filtered DataFrame and returns the value.
-3. Decide the `data_contract`: source file, list of filter DR-NNN ids, columns the function uses, row count after filtering.
-4. Use `_findings.register()` from a script to add the entry. Don't hand-edit `findings.json`.
+3. Decide the `input` (source file(s) + columns) and `reproducibility` (filter DR-NNN ids; the row count is filled in for you).
+4. Use `_findings.register_computed()` from a script to add the entry — it runs the function and stamps the value, row count, and source hash. Don't hand-edit `findings.json`.
 5. Run `python analysis/validate.py`. The new finding should replay green.
 
 ### "I want to update an existing finding"
@@ -1181,7 +1195,8 @@ The framework promises: minor version bumps are backwards-compatible (new featur
 - **F-NNN** — Finding id. The unit identifier in `findings.json`. Optionally suffixed with a letter for corroborating variants (`F-040`, `F-040b`).
 - **Replay** — the process where validate.py re-runs every finding's compute function against current data and compares the result.
 - **`check_type`** — the kind of value a finding produces (`scalar`, `distribution`, `matrix`, `boolean`, `manual`, etc.). Tells validate how to compare.
-- **`data_contract`** — declares a finding's data dependencies: source, filters, columns, row count after filter.
+- **`input`** — what a finding is about: its source files (`sources: [{path, sha256}]`) and the columns it depends on.
+- **`reproducibility`** — how to re-derive a finding: the DR-NNN filters applied and the post-filter row count.
 - **Live document** — one of the six markdown files in `live-docs/`. Amendable peers, updated continuously.
 - **Manual finding** — a finding whose value is too heterogeneous for typed replay; structural checks apply but no value comparison.
 - **Tier** — `--minimum` or `--full`. The latter adds Quarto vignettes.

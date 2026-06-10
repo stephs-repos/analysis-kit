@@ -1,5 +1,5 @@
 """
-_decisions.py — DR-NNN filter functions referenced from findings.json data_contract.
+_decisions.py — DR-NNN filter functions referenced from findings.json reproducibility.filters.
 
 Each filter is a function that takes a DataFrame and returns a DataFrame.
 The function name matches the DR-NNN id with hyphens replaced by underscores

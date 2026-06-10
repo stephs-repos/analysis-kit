@@ -1,5 +1,5 @@
 {
-  "framework_version": "0.3.0",
+  "framework_version": "1.0.0",
   "tier": "{{TIER}}",
   "project_name": "{{PROJECT_NAME}}",
   "created_at": "{{CREATED_AT}}",

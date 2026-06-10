@@ -35,8 +35,8 @@ def test_replay_fails_on_wrong_source_hash(project_with_fixture: Path) -> None:
         value=4.0,
         measurement_ref="analysis/02_profile.py:median_session_rating",
     )
-    f["data_contract"]["row_count_after_filter"] = 10
-    f["data_contract"]["source_sha256"] = "deadbeef" * 8  # wrong
+    f["reproducibility"]["row_count_after_filter"] = 10
+    f["input"]["sources"][0]["sha256"] ="deadbeef" * 8  # wrong
     write_findings(p, [f])
     result = run_validate(p)
     assert result.returncode != 0
@@ -53,8 +53,8 @@ def test_correct_source_hash_replays(project_with_fixture: Path) -> None:
         value=4.0,
         measurement_ref="analysis/02_profile.py:median_session_rating",
     )
-    f["data_contract"]["row_count_after_filter"] = 10
-    f["data_contract"]["source_sha256"] = real
+    f["reproducibility"]["row_count_after_filter"] = 10
+    f["input"]["sources"][0]["sha256"] =real
     write_findings(p, [f])
     result = run_validate(p)
     assert result.returncode == 0, result.stdout + result.stderr
@@ -67,14 +67,14 @@ import sys; sys.path.insert(0, '.')
 from analysis._findings import register
 register(id='F-001', claim='x', check_type='scalar',
     code_path='analysis/02_profile.py:median_session_rating', value=4.0,
-    data_contract={'source':'reference/raw-data/sessions.csv','filters':[],
-                   'columns':['session_rating'],'row_count_after_filter':10},
+    input={'sources':[{'path':'reference/raw-data/sessions.csv'}],'columns':['session_rating']},
+    reproducibility={'filters':[],'row_count_after_filter':10},
     caveats=[], counterfactual_tag='WEAK')
 """
     res = _run_in_project(p, code)
     assert res.returncode == 0, res.stderr
     findings = json.loads((p / "analysis" / "output" / "findings.json").read_text())
-    assert findings[0]["data_contract"]["source_sha256"] == _sha256(
+    assert findings[0]["input"]["sources"][0]["sha256"] == _sha256(
         p / "reference" / "raw-data" / "sessions.csv")
 
 
@@ -83,9 +83,9 @@ def test_source_hash_disagreement_fails(scaffolded_project: Path) -> None:
     means they replayed against different snapshots."""
     p = scaffolded_project
     f1 = _minimal_finding(fid="F-001")
-    f1["data_contract"]["source_sha256"] = "a" * 64
+    f1["input"]["sources"][0]["sha256"] = "a" * 64
     f2 = _minimal_finding(fid="F-002")
-    f2["data_contract"]["source_sha256"] = "b" * 64
+    f2["input"]["sources"][0]["sha256"] = "b" * 64
     write_findings(p, [f1, f2])
     result = run_validate(p, "--fast")
     assert result.returncode != 0
@@ -113,7 +113,7 @@ def test_custom_tolerance_widens_match_and_warns(project_with_fixture: Path) -> 
         value=4.005,  # 5e-3 off — outside the default 1e-6
         measurement_ref="analysis/02_profile.py:median_session_rating",
     )
-    f["data_contract"]["row_count_after_filter"] = 10
+    f["reproducibility"]["row_count_after_filter"] = 10
     f["tolerance"] = {"abs": 0.01}
     write_findings(p, [f])
     result = run_validate(p)
@@ -151,7 +151,7 @@ def test_loose_tolerance_cannot_mask_drift(project_with_fixture: Path) -> None:
         value=2.0,  # off by 2.0 ≫ cap 1.0
         measurement_ref="analysis/02_profile.py:median_session_rating",
     )
-    f["data_contract"]["row_count_after_filter"] = 10
+    f["reproducibility"]["row_count_after_filter"] = 10
     f["tolerance"] = {"abs": 1.0}  # the max
     write_findings(p, [f])
     result = run_validate(p)

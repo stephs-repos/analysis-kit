@@ -15,10 +15,12 @@ Usage:
         code_path="analysis/02_profile.py:median_session_rating",
         value=4.2,
         n=312,
-        data_contract={
-            "source": "reference/raw-data/sessions.csv",
-            "filters": ["DR-001", "DR-003"],
+        input={
+            "sources": [{"path": "reference/raw-data/sessions.csv"}],
             "columns": ["session_rating"],
+        },
+        reproducibility={
+            "filters": ["DR-001", "DR-003"],
             "row_count_after_filter": 312,
         },
         caveats=["zero_sentinel_masked"],
@@ -26,6 +28,9 @@ Usage:
         measurement_ref="analysis/02_profile.py:L120-L145",
         reason="initial entry",
     )
+
+register() stamps the sha256 of each source automatically when the file is
+present, so you don't write it by hand.
 """
 from __future__ import annotations
 
@@ -101,21 +106,21 @@ def _file_sha256(p: Path) -> str:
 
 
 def _stamp_source_hash(f: dict[str, Any]) -> None:
-    """Pin the content hash of the input so input drift is detectable later.
-    No-op if already pinned or the source file isn't present at registration."""
-    dc = f.get("data_contract")
-    if not isinstance(dc, dict):
+    """Pin the content hash of each input source so drift is detectable later.
+    No-op for a source already pinned or whose file isn't present yet."""
+    inp = f.get("input")
+    if not isinstance(inp, dict):
         return
-    src = dc.get("source")
-    if not isinstance(src, str) or dc.get("source_sha256"):
-        return
-    p = ROOT / src
-    if p.exists() and p.is_file():
-        dc["source_sha256"] = _file_sha256(p)
+    for s in inp.get("sources", []):
+        if not isinstance(s, dict) or not isinstance(s.get("path"), str) or s.get("sha256"):
+            continue
+        p = ROOT / s["path"]
+        if p.exists() and p.is_file():
+            s["sha256"] = _file_sha256(p)
 
 
 def _validate(f: dict[str, Any]) -> None:
-    required = ["id", "claim", "check_type", "code_path", "data_contract", "caveats", "counterfactual_tag"]
+    required = ["id", "claim", "check_type", "code_path", "input", "reproducibility", "caveats", "counterfactual_tag"]
     for k in required:
         if k not in f:
             raise ValueError(f"missing required field {k!r}")
@@ -157,10 +162,28 @@ def _validate(f: dict[str, Any]) -> None:
     if isinstance(v, float) and not math.isfinite(v):
         raise ValueError("value must be finite (no NaN/Inf)")
 
-    dc = f["data_contract"]
-    for k in ("source", "filters", "columns", "row_count_after_filter"):
-        if k not in dc:
-            raise ValueError(f"data_contract missing {k!r}")
+    inp = f["input"]
+    if not isinstance(inp, dict):
+        raise ValueError("input must be an object")
+    if "columns" not in inp:
+        raise ValueError("input missing 'columns'")
+    sources = inp.get("sources")
+    if not isinstance(sources, list) or not sources:
+        raise ValueError("input.sources must be a non-empty list of {path, sha256}")
+    for s in sources:
+        if not isinstance(s, dict) or not isinstance(s.get("path"), str) or not s.get("path"):
+            raise ValueError("each input source needs a string 'path'")
+    if ct in REPLAYABLE_TYPES and len(sources) != 1:
+        raise ValueError(f"a replayable {ct} finding needs exactly one input source; "
+                         "declare multi-source findings as check_type 'manual'")
+
+    r = f["reproducibility"]
+    if not isinstance(r, dict):
+        raise ValueError("reproducibility must be an object")
+    if not isinstance(r.get("filters"), list):
+        raise ValueError("reproducibility.filters must be a list")
+    if ct in REPLAYABLE_TYPES and "row_count_after_filter" not in r:
+        raise ValueError("reproducibility missing 'row_count_after_filter'")
 
 
 def register(*, reason: str = "initial entry", **fields: Any) -> dict[str, Any]:
@@ -194,12 +217,18 @@ def register_computed(*, reason: str = "initial entry", **fields: Any) -> dict[s
     actual post-filter count.
     """
     ct = fields.get("check_type")
-    if ct not in {"scalar", "proportion", "rate", "boolean", "distribution", "matrix"}:
+    if ct not in REPLAYABLE_TYPES:
         raise ValueError(f"register_computed is only for replayable numeric types, not {ct!r}")
     code_path = fields.get("code_path") or ""
-    dc = fields.get("data_contract")
-    if not isinstance(dc, dict) or "source" not in dc:
-        raise ValueError("register_computed requires a data_contract with a 'source'")
+    inp = fields.get("input")
+    sources = inp.get("sources") if isinstance(inp, dict) else None
+    if not isinstance(sources, list) or len(sources) != 1 or not isinstance(sources[0], dict):
+        raise ValueError("register_computed requires input.sources with exactly one {path} source")
+    source_path = sources[0].get("path")
+    if not isinstance(source_path, str):
+        raise ValueError("input.sources[0] needs a string 'path'")
+    repro = fields.setdefault("reproducibility", {})
+    repro.setdefault("filters", [])
 
     # Reuse the validator's own import/replay internals so "computed" means
     # exactly what validate.py will later re-run.
@@ -209,12 +238,12 @@ def register_computed(*, reason: str = "initial entry", **fields: Any) -> dict[s
     fn, err = _import_callable(code_path)
     if fn is None:
         raise ValueError(f"cannot run code_path {code_path!r}: {err}")
-    src = ROOT / dc["source"]
+    src = ROOT / source_path
     if not src.exists():
-        raise FileNotFoundError(f"source {dc['source']} not found — cannot compute value")
+        raise FileNotFoundError(f"source {source_path} not found — cannot compute value")
     df = pd.read_csv(src) if src.suffix == ".csv" else pd.read_excel(src)
-    df = _apply_filters(df, dc.get("filters", []), _import_decisions())
-    dc["row_count_after_filter"] = len(df)
+    df = _apply_filters(df, repro.get("filters", []), _import_decisions())
+    repro["row_count_after_filter"] = len(df)
     result = fn(df)
 
     # Stamp the computed result, coercing to JSON-native types (numpy scalars
@@ -228,8 +257,7 @@ def register_computed(*, reason: str = "initial entry", **fields: Any) -> dict[s
     elif ct == "matrix":
         fields["matrix"] = [[float(x) for x in row] for row in result]
 
-    dc.setdefault("columns", [])
-    fields["data_contract"] = dc
+    inp.setdefault("columns", [])
     return register(reason=reason, **fields)
 
 
@@ -239,10 +267,12 @@ def update(fid: str, *, reason: str, **changes: Any) -> dict[str, Any]:
     for i, f in enumerate(findings):
         if f.get("id") == fid:
             f.update(changes)
-            # If the data_contract was touched, drop any stale hash so it
-            # re-pins to the current source.
-            if "data_contract" in changes and isinstance(f.get("data_contract"), dict):
-                f["data_contract"].pop("source_sha256", None)
+            # If input was touched, drop any stale per-source hashes so they
+            # re-pin to the current files.
+            if "input" in changes and isinstance(f.get("input"), dict):
+                for s in f["input"].get("sources", []):
+                    if isinstance(s, dict):
+                        s.pop("sha256", None)
             f.setdefault("revision_history", []).append({"timestamp": _now(), "reason": reason})
             _stamp_source_hash(f)
             _validate(f)

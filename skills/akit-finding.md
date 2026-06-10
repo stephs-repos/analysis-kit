@@ -1,6 +1,6 @@
 ---
 name: akit-finding
-description: Register a single finding in an analysis-kit project. Takes a one-line hypothesis ("median rating is 4.2 after dropping zero-sentinels"), drafts the function, data_contract, caveats, and counterfactual tag, shows the proposed JSON, asks the user to register. Invoked as /akit-finding "<hypothesis>".
+description: Register a single finding in an analysis-kit project. Takes a one-line hypothesis ("median rating is 4.2 after dropping zero-sentinels"), drafts the function, input/reproducibility blocks, caveats, and counterfactual tag, shows the proposed JSON, asks the user to register. Invoked as /akit-finding "<hypothesis>".
 ---
 
 # /akit-finding
@@ -78,10 +78,12 @@ Register one finding from a one-line hypothesis. This is the workhorse skill —
       "code_path": "analysis/02_profile.py:median_session_rating",
       "value": 4.2,
       "n": 312,
-      "data_contract": {
-        "source": "reference/raw-data/sessions.csv",
+      "input": {
+        "sources": [{"path": "reference/raw-data/sessions.csv"}],
+        "columns": ["session_rating"]
+      },
+      "reproducibility": {
         "filters": ["DR-001"],
-        "columns": ["session_rating"],
         "row_count_after_filter": 312
       },
       "caveats": ["zero_sentinel_masked"],
@@ -90,13 +92,15 @@ Register one finding from a one-line hypothesis. This is the workhorse skill —
     }
     ```
 
+    (`register_computed()` runs the function and stamps `value`, `row_count_after_filter`, and each source's `sha256` for you — prefer it so the value can't drift from the code.)
+
     Plus any new code that would be added (the function, any new DR-NNN entries).
 
 ## Confirmation
 
 11. Ask: "Register this as F-NNN? (y/edit/skip)"
 
-    - On `y`: write the function to the analysis script (if new), call `_findings.register(...)` from a one-shot Python invocation, then run `python analysis/validate.py` (full mode) to confirm the new finding replays green.
+    - On `y`: write the function to the analysis script (if new), call `_findings.register_computed(...)` from a one-shot Python invocation (it runs the function and stamps the value, row count, and source hashes), then run `python analysis/validate.py` (full mode) to confirm the new finding replays green.
 
     - On `edit`: ask what to change (claim text, filters, caveats, etc.), apply the edit to the proposed JSON, ask for confirmation again.
 
@@ -114,7 +118,7 @@ Register one finding from a one-line hypothesis. This is the workhorse skill —
 ## Critical rules
 
 - **Don't register without computing the value first.** A finding with `value=null` is meaningless and validate.py will fail anyway.
-- **Don't skip the `data_contract.row_count_after_filter` field.** It's the highest-value field for catching silent drift; never leave it as 0 or null.
+- **Don't skip the `reproducibility.row_count_after_filter` field.** It's a high-value drift signal (alongside the source hash); never leave it as 0 or null. `register_computed()` fills it from the actual post-filter count.
 - **Don't auto-create new DR-NNN filters silently.** If the hypothesis needs a filter that doesn't exist, surface that as a separate decision and ask the user.
 - **Never edit a finding by hand-editing `findings.json`.** Always go through `_findings.register()` or `_findings.update()` so revision_history stays correct.
 - **Don't tag `OBSERVED` without a `measurement_ref`.** validate.py will reject it; the schema requires it. If the measurement isn't defensible, downgrade to `PLAUSIBLE` with a named supporting pattern, or `WEAK` (and don't publish it).

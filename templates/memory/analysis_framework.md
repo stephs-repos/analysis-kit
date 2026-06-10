@@ -7,7 +7,7 @@ type: feedback
 This project follows the analysis-kit trust contract. Every quantitative claim must:
 
 1. Have an `F-NNN` id in `analysis/output/findings.json`.
-2. Have a `code_path` that resolves and a `data_contract` declaring filters, source, columns, and row count.
+2. Have a `code_path` that resolves, an `input` block (sources + columns) and a `reproducibility` block (filters + row count after filter).
 3. Pass `python analysis/validate.py` with exit 0.
 
 **Why:** memos and vignettes lose credibility the moment a number can't be reproduced. Exit-code-as-truth is more durable than an LLM's self-assessment.

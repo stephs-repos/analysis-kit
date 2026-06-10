@@ -35,9 +35,9 @@ In Claude Code, a PreToolUse hook can return:
 - **Does not** re-read raw data or replay any computation.
 
 Full mode adds:
-- Reads `data_contract.source` for each finding.
-- Applies `data_contract.filters`.
-- Verifies `row_count_after_filter` matches.
+- Reads each finding's `input.sources` (and verifies any pinned `sha256`).
+- Applies `reproducibility.filters`.
+- Verifies `reproducibility.row_count_after_filter` matches.
 - Replays the computation and compares to stored value.
 
 ## Disabling

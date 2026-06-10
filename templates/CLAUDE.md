@@ -20,7 +20,7 @@ This project was scaffolded from [analysis-kit](https://github.com/{{GITHUB_USER
 Every quantitative claim in a memo, vignette, or stakeholder communication must:
 
 1. Have an `F-NNN` id in `analysis/output/findings.json`.
-2. Have a `code_path` that resolves and a `data_contract` that declares its filters.
+2. Have a `code_path` that resolves, an `input` block declaring its source(s) and columns, and a `reproducibility` block declaring its filters and post-filter row count.
 3. Pass `python analysis/validate.py` with exit 0.
 
 Findings have `counterfactual_tag`: `OBSERVED` (measured, requires `measurement_ref`), `PLAUSIBLE` (informed estimate, supporting pattern named), or `WEAK` (rephrase or remove).

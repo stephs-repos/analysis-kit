@@ -110,7 +110,7 @@ def test_replay_with_correct_value_passes(project_with_fixture: Path) -> None:
         value=4.0,  # median of full sessions.csv
         measurement_ref="analysis/02_profile.py:median_session_rating",
     )
-    f["data_contract"]["row_count_after_filter"] = 10
+    f["reproducibility"]["row_count_after_filter"] = 10
     write_findings(p, [f])
     result = run_validate(p)
     assert result.returncode == 0, result.stdout + result.stderr
@@ -125,7 +125,7 @@ def test_replay_with_wrong_value_fails(project_with_fixture: Path) -> None:
         value=99.9,  # wrong on purpose
         measurement_ref="analysis/02_profile.py:median_session_rating",
     )
-    f["data_contract"]["row_count_after_filter"] = 10
+    f["reproducibility"]["row_count_after_filter"] = 10
     write_findings(p, [f])
     result = run_validate(p)
     assert result.returncode != 0
@@ -141,7 +141,7 @@ def test_replay_detects_row_count_drift(project_with_fixture: Path) -> None:
         value=4.0,
         measurement_ref="analysis/02_profile.py:median_session_rating",
     )
-    f["data_contract"]["row_count_after_filter"] = 999  # contract says 999, actual is 10
+    f["reproducibility"]["row_count_after_filter"] = 999  # contract says 999, actual is 10
     write_findings(p, [f])
     result = run_validate(p)
     assert result.returncode != 0
@@ -175,8 +175,8 @@ def DR_001(df: pd.DataFrame) -> pd.DataFrame:
         value=round((4 + 4.5 + 5 + 3 + 4 + 4.5 + 5 + 3.5 + 4) / 9, 6),  # 4.166...
         measurement_ref="analysis/02_profile.py:mean_session_rating",
     )
-    f["data_contract"]["filters"] = ["DR-001"]
-    f["data_contract"]["row_count_after_filter"] = 9
+    f["reproducibility"]["filters"] = ["DR-001"]
+    f["reproducibility"]["row_count_after_filter"] = 9
     write_findings(p, [f])
     result = run_validate(p)
     assert result.returncode == 0, result.stdout + result.stderr
@@ -208,7 +208,7 @@ def median_session_rating(df):
         value=4.0,
         measurement_ref="analysis/02_profile.py:median_session_rating",
     )
-    f["data_contract"]["row_count_after_filter"] = 10
+    f["reproducibility"]["row_count_after_filter"] = 10
     write_findings(p, [f])
     result = run_validate(p)
     assert result.returncode == 0, result.stdout + result.stderr
@@ -245,7 +245,7 @@ def has_zero_sentinel(df):
         value=True,
         measurement_ref="analysis/02_profile.py:has_zero_sentinel",
     )
-    f["data_contract"]["row_count_after_filter"] = 10
+    f["reproducibility"]["row_count_after_filter"] = 10
     write_findings(p, [f])
     result = run_validate(p)
     assert result.returncode == 0, result.stdout + result.stderr
@@ -264,7 +264,7 @@ def has_zero_sentinel(df):
         value=False,  # claim is wrong
         measurement_ref="analysis/02_profile.py:has_zero_sentinel",
     )
-    f["data_contract"]["row_count_after_filter"] = 10
+    f["reproducibility"]["row_count_after_filter"] = 10
     write_findings(p, [f])
     result = run_validate(p)
     assert result.returncode != 0
@@ -298,7 +298,7 @@ def identity_3x3(df):
     f.pop("value", None)
     f.pop("n", None)
     f["matrix"] = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
-    f["data_contract"]["row_count_after_filter"] = 10
+    f["reproducibility"]["row_count_after_filter"] = 10
     write_findings(p, [f])
     result = run_validate(p)
     assert result.returncode == 0, result.stdout + result.stderr
@@ -318,7 +318,7 @@ def identity_3x3(df):
     f.pop("value", None)
     f.pop("n", None)
     f["matrix"] = [[1.0, 0.0, 0.0], [0.0, 0.99, 0.0], [0.0, 0.0, 1.0]]  # off
-    f["data_contract"]["row_count_after_filter"] = 10
+    f["reproducibility"]["row_count_after_filter"] = 10
     write_findings(p, [f])
     result = run_validate(p)
     assert result.returncode != 0
@@ -404,7 +404,7 @@ def L2_norm(df):
         value=round(math.sqrt(sum(v * v for v in vals)), 6),
         measurement_ref="analysis/02_profile.py:L2_norm",
     )
-    f["data_contract"]["row_count_after_filter"] = 10
+    f["reproducibility"]["row_count_after_filter"] = 10
     write_findings(p, [f])
     result = run_validate(p)
     assert result.returncode == 0, result.stdout + result.stderr
@@ -493,7 +493,7 @@ def rating_quartiles(df):
     )
     f.pop("value", None)
     f["distribution"] = {"min": 0.0, "median": 4.0, "max": 5.0}
-    f["data_contract"]["row_count_after_filter"] = 10
+    f["reproducibility"]["row_count_after_filter"] = 10
     write_findings(p, [f])
     result = run_validate(p)
     assert result.returncode == 0, result.stdout + result.stderr
@@ -514,7 +514,7 @@ def rating_quartiles(df):
     )
     f.pop("value", None)
     f["distribution"] = {"min": 0.0, "median": 3.0, "max": 5.0}  # median is wrong
-    f["data_contract"]["row_count_after_filter"] = 10
+    f["reproducibility"]["row_count_after_filter"] = 10
     write_findings(p, [f])
     result = run_validate(p)
     assert result.returncode != 0
@@ -533,7 +533,7 @@ def share_five_star(df):
         value=0.2,  # 2 of 10 rows are 5.0
         measurement_ref="analysis/02_profile.py:share_five_star",
     )
-    f["data_contract"]["row_count_after_filter"] = 10
+    f["reproducibility"]["row_count_after_filter"] = 10
     write_findings(p, [f])
     result = run_validate(p)
     assert result.returncode == 0, result.stdout + result.stderr
@@ -599,7 +599,7 @@ def test_replay_tolerance_boundary(project_with_fixture: Path) -> None:
         value=4.0000005,  # 5e-7 < 1e-6
         measurement_ref="analysis/02_profile.py:median_session_rating",
     )
-    within["data_contract"]["row_count_after_filter"] = 10
+    within["reproducibility"]["row_count_after_filter"] = 10
     write_findings(p, [within])
     assert run_validate(p).returncode == 0
 
@@ -648,8 +648,8 @@ def test_broken_decisions_module_fails_gracefully(project_with_fixture: Path) ->
         value=4.0,
         measurement_ref="analysis/02_profile.py:median_session_rating",
     )
-    f["data_contract"]["filters"] = ["DR-001"]
-    f["data_contract"]["row_count_after_filter"] = 9
+    f["reproducibility"]["filters"] = ["DR-001"]
+    f["reproducibility"]["row_count_after_filter"] = 9
     write_findings(p, [f])
     result = run_validate(p)
     assert result.returncode != 0
@@ -668,10 +668,12 @@ def _minimal_finding(*, fid: str = "F-001", **overrides) -> dict:
         "code_path": "analysis/02_profile.py:median_session_rating",
         "value": 4.0,
         "n": 10,
-        "data_contract": {
-            "source": "reference/raw-data/sessions.csv",
-            "filters": [],
+        "input": {
+            "sources": [{"path": "reference/raw-data/sessions.csv"}],
             "columns": ["session_rating"],
+        },
+        "reproducibility": {
+            "filters": [],
             "row_count_after_filter": 10,
         },
         "caveats": [],

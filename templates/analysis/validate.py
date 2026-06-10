@@ -4,7 +4,7 @@ validate.py — exit code is the trust contract.
 Every quantitative claim in findings.json must replay green. Two modes:
 
   python analysis/validate.py --fast    schema + structural checks only (~1s)
-  python analysis/validate.py           full mode: replay every finding's data_contract
+  python analysis/validate.py           full mode: replay every finding from its input + reproducibility
 
 Exit 0 = trustworthy. Exit non-zero = stop, fix, do not ship.
 
@@ -12,7 +12,7 @@ This file is shipped by analysis-kit. Project-specific checks live below the
 PROJECT-SPECIFIC marker. Don't edit core dispatcher logic — fix it upstream
 in analysis-kit and migrate.
 
-Framework version: 0.3.0
+Framework version: 1.0.0
 """
 from __future__ import annotations
 
@@ -42,6 +42,18 @@ VALID_TAGS = {"OBSERVED", "PLAUSIBLE", "WEAK"}
 # REQUIRE a runnable callable in code_path — a line reference cannot replay a
 # value, so allowing it would let a finding silently skip verification.
 REPLAYABLE_TYPES = {"scalar", "proportion", "rate", "boolean", "distribution", "matrix"}
+
+
+def _sources(f: dict) -> list:
+    """The finding's declared input sources: a list of {path, sha256} objects."""
+    inp = f.get("input")
+    return inp.get("sources", []) if isinstance(inp, dict) else []
+
+
+def _repro(f: dict) -> dict:
+    r = f.get("reproducibility")
+    return r if isinstance(r, dict) else {}
+
 
 failures: list[tuple[str, str]] = []
 warnings_: list[tuple[str, str]] = []
@@ -116,7 +128,7 @@ def check_ids_unique(findings: list[dict]) -> None:
 
 
 def check_required_fields(findings: list[dict]) -> None:
-    required = ["id", "claim", "check_type", "code_path", "data_contract", "caveats", "counterfactual_tag", "revision_history"]
+    required = ["id", "claim", "check_type", "code_path", "input", "reproducibility", "caveats", "counterfactual_tag", "revision_history"]
     for f in findings:
         for field in required:
             if field not in f:
@@ -259,17 +271,51 @@ def check_caveats_array(findings: list[dict]) -> None:
         ok("caveats:list")
 
 
-def check_data_contract_shape(findings: list[dict]) -> None:
+def check_input_shape(findings: list[dict]) -> None:
+    """`input` declares what the claim is *about*: its source files (each with a
+    path and, ideally, a pinned content hash) and the columns it depends on."""
     for f in findings:
-        dc = f.get("data_contract")
-        if not isinstance(dc, dict):
-            fail("data_contract:dict", f"{f.get('id')}: data_contract must be an object")
+        fid = f.get("id")
+        inp = f.get("input")
+        if not isinstance(inp, dict):
+            fail("input:shape", f"{fid}: input must be an object")
             continue
-        for k in ("source", "filters", "columns", "row_count_after_filter"):
-            if k not in dc:
-                fail("data_contract:fields", f"{f.get('id')}: data_contract missing {k!r}")
-    if not any(n.startswith("data_contract") for n, _ in failures):
-        ok("data_contract:shape")
+        if "columns" not in inp:
+            fail("input:columns", f"{fid}: input missing 'columns'")
+        sources = inp.get("sources")
+        if not isinstance(sources, list) or not sources:
+            fail("input:sources", f"{fid}: input.sources must be a non-empty list")
+            continue
+        for s in sources:
+            if not isinstance(s, dict) or not isinstance(s.get("path"), str) or not s.get("path"):
+                fail("input:sources", f"{fid}: each input source needs a string 'path'")
+        # A replayable finding computes from a single dataframe — multi-source
+        # combination is project-specific, so those findings must be `manual`.
+        if f.get("check_type") in REPLAYABLE_TYPES and len(sources) != 1:
+            fail("input:single_source",
+                 f"{fid}: a replayable {f.get('check_type')!r} finding needs exactly one input source "
+                 f"(got {len(sources)}); declare multi-source findings as check_type 'manual'")
+    if not any(n.startswith("input") for n, _ in failures):
+        ok("input:shape")
+
+
+def check_reproducibility_shape(findings: list[dict]) -> None:
+    """`reproducibility` declares how to re-derive the value: the filters applied
+    and the post-filter row count."""
+    for f in findings:
+        fid = f.get("id")
+        r = f.get("reproducibility")
+        if not isinstance(r, dict):
+            fail("reproducibility:shape", f"{fid}: reproducibility must be an object")
+            continue
+        if not isinstance(r.get("filters"), list):
+            fail("reproducibility:filters", f"{fid}: reproducibility.filters must be a list")
+        # row_count_after_filter pins the row subset; required for replayable
+        # findings (manual findings aren't re-run, so it's optional there).
+        if f.get("check_type") in REPLAYABLE_TYPES and "row_count_after_filter" not in r:
+            fail("reproducibility:row_count", f"{fid}: reproducibility missing 'row_count_after_filter'")
+    if not any(n.startswith("reproducibility") for n, _ in failures):
+        ok("reproducibility:shape")
 
 
 def check_tolerances(findings: list[dict]) -> None:
@@ -309,22 +355,21 @@ def check_source_hash_consistency(findings: list[dict]) -> None:
     by_source: dict[str, set] = {}
     n_unpinned = 0
     for f in findings:
-        dc = f.get("data_contract") or {}
-        src = dc.get("source")
-        if not isinstance(src, str):
-            continue
-        h = dc.get("source_sha256")
-        if h:
-            by_source.setdefault(src, set()).add(h)
-        else:
-            n_unpinned += 1
+        for s in _sources(f):
+            if not isinstance(s, dict) or not isinstance(s.get("path"), str):
+                continue
+            h = s.get("sha256")
+            if h:
+                by_source.setdefault(s["path"], set()).add(h)
+            else:
+                n_unpinned += 1
     for src, hashes in by_source.items():
         if len(hashes) > 1:
             fail("source_hash:consistency",
                  f"findings disagree on the sha256 of {src} — different snapshots were used")
     if n_unpinned and not any(n.startswith("source_hash") for n, _ in failures):
         warn("source_hash:unpinned",
-             f"{n_unpinned} finding(s) have no data_contract.source_sha256 — add it (register() stamps "
+             f"{n_unpinned} input source(s) have no pinned sha256 — add it (register() stamps "
              "it automatically) so input drift is caught")
     if not any(n.startswith("source_hash") for n, _ in failures):
         ok("source_hash:consistency")
@@ -568,24 +613,31 @@ def replay_finding(f: dict, decisions_mod) -> tuple[bool, str]:
         return False, err or "could not import callable"
 
     try:
-        # Most projects: function takes a dataframe pre-filtered by data_contract.
-        # We pass the filtered df so the function focuses on computation.
+        # A replayable finding computes from a single dataframe (multi-source is
+        # check_type 'manual'). We pass the filtered df so the function focuses
+        # on computation; filters and the expected row count come from
+        # `reproducibility`, the source from `input`.
         import pandas as pd
-        dc = f["data_contract"]
-        src = ROOT / dc["source"]
+        sources = _sources(f)
+        if len(sources) != 1:
+            return False, f"expected exactly one input source, got {len(sources)}"
+        source = sources[0]
+        src = ROOT / source["path"]
         if not src.exists():
             return False, f"source {src} missing"
         # Input identity: if the finding pinned the source hash, the file must
         # still match it. This is a stronger drift signal than row count — it
         # catches mutated cells, reordered rows, and schema changes that leave
         # the count unchanged.
-        stored_hash = dc.get("source_sha256")
+        stored_hash = source.get("sha256")
         if stored_hash and _file_sha256(src) != stored_hash:
-            return False, f"source {dc['source']} changed since recorded (sha256 mismatch — data drift)"
+            return False, f"source {source['path']} changed since recorded (sha256 mismatch — data drift)"
+        repro = _repro(f)
         df = pd.read_csv(src) if src.suffix == ".csv" else pd.read_excel(src)
-        df = _apply_filters(df, dc.get("filters", []), decisions_mod)
-        if len(df) != dc["row_count_after_filter"]:
-            return False, f"row count {len(df)} != contract {dc['row_count_after_filter']} (data drift?)"
+        df = _apply_filters(df, repro.get("filters", []), decisions_mod)
+        expected_rows = repro.get("row_count_after_filter")
+        if expected_rows is not None and len(df) != expected_rows:
+            return False, f"row count {len(df)} != contract {expected_rows} (data drift?)"
         result = fn(df)
         replayer = REPLAY_DISPATCH.get(ct)
         if replayer is None:
@@ -603,7 +655,7 @@ def replay_finding(f: dict, decisions_mod) -> tuple[bool, str]:
 
 def run_replay(findings: list[dict]) -> None:
     decisions_mod = _import_decisions()
-    if decisions_mod is None and any(f.get("data_contract", {}).get("filters") for f in findings):
+    if decisions_mod is None and any(_repro(f).get("filters") for f in findings):
         # Distinguish "missing" from "failed to import" (the latter already failed above)
         if not any(n == "replay:_decisions.py" for n, _ in failures):
             fail("replay:_decisions.py", "findings reference DR-NNN filters but analysis/_decisions.py is missing")
@@ -653,7 +705,8 @@ def main() -> int:
     check_code_paths_resolve(findings)
     check_revision_history(findings)
     check_caveats_array(findings)
-    check_data_contract_shape(findings)
+    check_input_shape(findings)
+    check_reproducibility_shape(findings)
     check_tolerances(findings)
     check_source_hash_consistency(findings)
     check_trust_memo_orphans(findings)
