@@ -4,10 +4,11 @@ The `findings.json` schema is the API between the operator (Claude) and the trus
 
 ## Current schema version
 
-`framework_version: 0.2.1`. Stored in each project's `analysis-kit.json`.
+`framework_version: 0.3.0`. Stored in each project's `analysis-kit.json`.
 
 ### Changelog
 
+- **0.3.0** — Grounding & drift (additive). (1) **Input hashing**: `data_contract.source_sha256` pins the content hash of the input. `register()` stamps it automatically; replay fails if the source file changed since the finding was recorded (a stronger drift signal than row count — it catches mutated cells and reordered rows), and all findings on the same source must agree on the hash (so two claims can't silently use different snapshots). (2) **Execution-primary registration**: `register_computed()` runs `code_path` on the declared source and stores the *returned* value, so a number can't be supplied divorced from the code that produced it. (3) **Per-finding tolerance**: an optional `tolerance: {abs, rel}` overrides the replay default, capped (abs ≤ 1.0, rel ≤ 0.1) and surfaced as a warning so the trust knob stays auditable. (4) **Schema drift**: `analysis.schemas.snapshot()` locks a Pandera schema per source into `analysis/output/schema-lock.json`; when present, full-mode validate re-checks each source against its locked schema and fails on shape/type/range drift that conforms in row-count.
 - **0.2.1** — Verifier hardening (no schema change; the validator only gets stricter, matching what this contract always documented). Closed two holes that let a finding pass without being verified: (1) a `code_path` with no function name, or a line reference (`:Lstart-Lend`) on a replayable check_type, now **fails** — a value that can't be re-run isn't a verified value, so replayable check_types must name a runnable function (line references remain valid for `manual` findings and for `measurement_ref`); (2) conditional payload fields (`value`, `distribution`, `matrix`, `quote`/`source_locator`) are now **enforced structurally**, so a payload-less finding can no longer replay vacuously. Also: malformed `findings.json` (non-object entries, null fields, NaN values) fails gracefully instead of crashing; `code_path`/quote sources are confined to the project root; `_findings.register()` rejects the same defects before they reach disk.
 - **0.2.0** — Added `boolean` and `manual` check_types. `boolean` for assertions whose value is a Python bool (`function returns True/False, compared to stored`). `manual` for findings that are structurally documented but not auto-replayable; surface as `AUDIT` lines in validate output and emit a warning. Both surfaced when porting noise-solution's 35-finding set: 5 booleans (data-quality assertions, "X is true/false" findings) and 17 heterogeneous-dict findings that don't fit the typed enum cleanly. Promoted `matrix` from "shipped but untested" to "first-class with regression tests"; expects list-of-lists, element-wise float compare with the project tolerance.
 - **0.1.0** — Initial schema: scalar, distribution, matrix, quote_provenance, proportion, rate.
@@ -59,6 +60,7 @@ The `findings.json` schema is the API between the operator (Claude) and the trus
 - `quote`: required when `check_type == "quote_provenance"`. Verbatim text.
 - `source_locator`: required when `check_type == "quote_provenance"`. Where in the source the quote was found.
 - `measurement_ref`: required when `counterfactual_tag == "OBSERVED"`. Path:line reference to the measurement code.
+- `tolerance`: optional object `{abs, rel}` overriding the replay tolerance for numeric check_types. Capped at `abs ≤ 1.0`, `rel ≤ 0.1`; any custom tolerance is surfaced as a warning so it stays auditable.
 
 ### `manual` check_type
 
@@ -76,8 +78,9 @@ Use when a finding is structurally important but not naturally machine-replayabl
 ```
 
 - `source`: relative path from project root to the input file. (Single source per finding; multi-source is planned for v1.0.)
+- `source_sha256` (optional): content hash of the input file, stamped by `register()`. When present, replay fails if the file changed since the finding was recorded, and all findings on the same source must agree on it.
 - `filters`: array of `DR-NNN` ids from `live-docs/DECISIONS.md`. Validate.py uses these to reconstruct the row subset and recompute the value.
-- `columns`: the columns the finding depends on. Documentary in this version (serialized-schema drift detection is planned for v0.3); `row_count_after_filter` is the live drift signal today.
+- `columns`: the columns the finding depends on. Documentary; the live drift signals are `row_count_after_filter`, `source_sha256`, and (when locked) the Pandera schema in `schema-lock.json`.
 - `row_count_after_filter`: integer. Lets validate detect silent row-count changes between data refreshes.
 
 ## Replay vs consistency

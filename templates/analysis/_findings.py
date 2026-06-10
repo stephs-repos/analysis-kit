@@ -30,6 +30,7 @@ Usage:
 from __future__ import annotations
 
 import datetime as _dt
+import hashlib
 import json
 import math
 import os
@@ -89,6 +90,28 @@ def _atomic_write(data: list[dict]) -> None:
 
 def _now() -> str:
     return _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _file_sha256(p: Path) -> str:
+    h = hashlib.sha256()
+    with open(p, "rb") as fh:
+        for chunk in iter(lambda: fh.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _stamp_source_hash(f: dict[str, Any]) -> None:
+    """Pin the content hash of the input so input drift is detectable later.
+    No-op if already pinned or the source file isn't present at registration."""
+    dc = f.get("data_contract")
+    if not isinstance(dc, dict):
+        return
+    src = dc.get("source")
+    if not isinstance(src, str) or dc.get("source_sha256"):
+        return
+    p = ROOT / src
+    if p.exists() and p.is_file():
+        dc["source_sha256"] = _file_sha256(p)
 
 
 def _validate(f: dict[str, Any]) -> None:
@@ -151,10 +174,63 @@ def register(*, reason: str = "initial entry", **fields: Any) -> dict[str, Any]:
 
     fields.setdefault("caveats", [])
     fields["revision_history"] = [{"timestamp": _now(), "reason": reason}]
+    _stamp_source_hash(fields)
     _validate(fields)
     findings.append(fields)
     _atomic_write(findings)
     return fields
+
+
+def register_computed(*, reason: str = "initial entry", **fields: Any) -> dict[str, Any]:
+    """Like register(), but the stored value is COMPUTED by running code_path on
+    the declared source — the operator cannot supply a number divorced from the
+    code that supposedly produced it. This closes the 'store a plausible value,
+    point at unrelated code' gap at the source.
+
+    Only for replayable numeric check_types (scalar / proportion / rate /
+    boolean / distribution / matrix). For quote_provenance and manual, use
+    register(). Any `value`/`distribution`/`matrix` passed in is ignored and
+    replaced with the executed result; `row_count_after_filter` is set to the
+    actual post-filter count.
+    """
+    ct = fields.get("check_type")
+    if ct not in {"scalar", "proportion", "rate", "boolean", "distribution", "matrix"}:
+        raise ValueError(f"register_computed is only for replayable numeric types, not {ct!r}")
+    code_path = fields.get("code_path") or ""
+    dc = fields.get("data_contract")
+    if not isinstance(dc, dict) or "source" not in dc:
+        raise ValueError("register_computed requires a data_contract with a 'source'")
+
+    # Reuse the validator's own import/replay internals so "computed" means
+    # exactly what validate.py will later re-run.
+    from analysis.validate import _import_callable, _apply_filters, _import_decisions
+    import pandas as pd
+
+    fn, err = _import_callable(code_path)
+    if fn is None:
+        raise ValueError(f"cannot run code_path {code_path!r}: {err}")
+    src = ROOT / dc["source"]
+    if not src.exists():
+        raise FileNotFoundError(f"source {dc['source']} not found — cannot compute value")
+    df = pd.read_csv(src) if src.suffix == ".csv" else pd.read_excel(src)
+    df = _apply_filters(df, dc.get("filters", []), _import_decisions())
+    dc["row_count_after_filter"] = len(df)
+    result = fn(df)
+
+    # Stamp the computed result, coercing to JSON-native types (numpy scalars
+    # are not JSON-serializable).
+    if ct in {"scalar", "proportion", "rate"}:
+        fields["value"] = float(result)
+    elif ct == "boolean":
+        fields["value"] = bool(result)
+    elif ct == "distribution":
+        fields["distribution"] = {k: float(v) for k, v in dict(result).items()}
+    elif ct == "matrix":
+        fields["matrix"] = [[float(x) for x in row] for row in result]
+
+    dc.setdefault("columns", [])
+    fields["data_contract"] = dc
+    return register(reason=reason, **fields)
 
 
 def update(fid: str, *, reason: str, **changes: Any) -> dict[str, Any]:
@@ -163,7 +239,12 @@ def update(fid: str, *, reason: str, **changes: Any) -> dict[str, Any]:
     for i, f in enumerate(findings):
         if f.get("id") == fid:
             f.update(changes)
+            # If the data_contract was touched, drop any stale hash so it
+            # re-pins to the current source.
+            if "data_contract" in changes and isinstance(f.get("data_contract"), dict):
+                f["data_contract"].pop("source_sha256", None)
             f.setdefault("revision_history", []).append({"timestamp": _now(), "reason": reason})
+            _stamp_source_hash(f)
             _validate(f)
             findings[i] = f
             _atomic_write(findings)

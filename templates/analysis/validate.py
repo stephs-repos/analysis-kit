@@ -12,11 +12,12 @@ This file is shipped by analysis-kit. Project-specific checks live below the
 PROJECT-SPECIFIC marker. Don't edit core dispatcher logic — fix it upstream
 in analysis-kit and migrate.
 
-Framework version: 0.2.1
+Framework version: 0.3.0
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib.util
 import json
 import math
@@ -271,6 +272,103 @@ def check_data_contract_shape(findings: list[dict]) -> None:
         ok("data_contract:shape")
 
 
+def check_tolerances(findings: list[dict]) -> None:
+    """A finding's replay tolerance is the trust knob for its numeric claim.
+    Custom tolerances are allowed but capped (a tolerance wide enough to mask
+    real drift is meaningless) and always surfaced as a warning so they are
+    auditable rather than silent."""
+    n_custom = 0
+    for f in findings:
+        t = f.get("tolerance")
+        if t is None:
+            continue
+        fid = f.get("id", "?")
+        if not isinstance(t, dict):
+            fail("tolerance:shape", f"{fid}: tolerance must be an object with 'abs'/'rel'")
+            continue
+        n_custom += 1
+        for name, cap in (("abs", _MAX_ABS_TOL), ("rel", _MAX_REL_TOL)):
+            val = t.get(name)
+            if val is None:
+                continue
+            if not isinstance(val, (int, float)) or val < 0:
+                fail("tolerance:value", f"{fid}: tolerance.{name} must be a non-negative number")
+            elif val > cap:
+                fail("tolerance:loose",
+                     f"{fid}: tolerance.{name}={val} exceeds the cap {cap} — too loose to be meaningful")
+    if n_custom and not any(n.startswith("tolerance") for n, _ in failures):
+        warn("tolerance:custom", f"{n_custom} finding(s) use a custom replay tolerance — audit them")
+    if not any(n.startswith("tolerance") for n, _ in failures):
+        ok("tolerance:bounds")
+
+
+def check_source_hash_consistency(findings: list[dict]) -> None:
+    """Per-claim replay has no shared pipeline DAG, so two findings could each
+    replay green against *different* snapshots of the same source. Pinning a
+    source hash and requiring all findings on a source to agree closes that gap."""
+    by_source: dict[str, set] = {}
+    n_unpinned = 0
+    for f in findings:
+        dc = f.get("data_contract") or {}
+        src = dc.get("source")
+        if not isinstance(src, str):
+            continue
+        h = dc.get("source_sha256")
+        if h:
+            by_source.setdefault(src, set()).add(h)
+        else:
+            n_unpinned += 1
+    for src, hashes in by_source.items():
+        if len(hashes) > 1:
+            fail("source_hash:consistency",
+                 f"findings disagree on the sha256 of {src} — different snapshots were used")
+    if n_unpinned and not any(n.startswith("source_hash") for n, _ in failures):
+        warn("source_hash:unpinned",
+             f"{n_unpinned} finding(s) have no data_contract.source_sha256 — add it (register() stamps "
+             "it automatically) so input drift is caught")
+    if not any(n.startswith("source_hash") for n, _ in failures):
+        ok("source_hash:consistency")
+
+
+# Expected-schema lock file (opt-in). Produced by analysis.schemas.snapshot();
+# maps a source path to a serialized Pandera schema. When present, validate
+# re-checks each declared source against its locked schema to catch drift that
+# conforms in row-count but not in shape/types/ranges.
+SCHEMA_LOCK = ROOT / "analysis" / "output" / "schema-lock.json"
+
+
+def check_schema_drift(findings: list[dict]) -> None:
+    if not SCHEMA_LOCK.exists():
+        return  # opt-in: no lock file → nothing to check
+    try:
+        registry = json.loads(SCHEMA_LOCK.read_text())
+    except json.JSONDecodeError as e:
+        fail("schema_drift:lock", f"schema-lock.json does not parse: {e}")
+        return
+    if not isinstance(registry, dict):
+        fail("schema_drift:lock", "schema-lock.json must be a {source: schema} object")
+        return
+    try:
+        import pandas as pd
+        from pandera.pandas import DataFrameSchema
+    except ImportError as e:
+        fail("schema_drift:deps", f"schema-lock present but pandera/pandas unavailable: {e}")
+        return
+    for source, schema_json in registry.items():
+        src = ROOT / source
+        if not src.exists():
+            warn("schema_drift:missing_source", f"{source} in schema-lock but file is absent")
+            continue
+        try:
+            schema = DataFrameSchema.from_json(json.dumps(schema_json))
+            df = pd.read_csv(src) if src.suffix == ".csv" else pd.read_excel(src)
+            schema.validate(df, lazy=True)
+        except Exception as e:
+            fail("schema_drift", f"{source} no longer matches its locked schema: {type(e).__name__}: {e}")
+    if not any(n.startswith("schema_drift") for n, _ in failures):
+        ok("schema_drift:none")
+
+
 # ─── replay (full mode) ─────────────────────────────────────────────────────
 
 def _import_decisions() -> Any:
@@ -339,16 +437,40 @@ def _apply_filters(df, filter_ids: list[str], decisions_mod) -> Any:
 # Analytical findings are routinely stored rounded for human consumption
 # (e.g., 4.17 or 4.166667). 1e-6 abs tolerance lets findings stored to
 # six decimal places replay green; relative tolerance handles large values.
+# A finding MAY override these via a `tolerance: {abs, rel}` object, but the
+# override is capped (see check_tolerances) and surfaced as a warning — the
+# tolerance is the trust knob for numeric claims, so a loose one is auditable.
 _TOL_ABS = 1e-6
 _TOL_REL = 1e-9
+_MAX_ABS_TOL = 1.0
+_MAX_REL_TOL = 0.1
+
+
+def _tols(f: dict) -> tuple[float, float]:
+    t = f.get("tolerance") if isinstance(f.get("tolerance"), dict) else {}
+    abs_t = t.get("abs", _TOL_ABS)
+    rel_t = t.get("rel", _TOL_REL)
+    # Clamp defensively so a malformed tolerance can't widen the gate past the cap.
+    abs_t = abs_t if isinstance(abs_t, (int, float)) and 0 <= abs_t <= _MAX_ABS_TOL else _TOL_ABS
+    rel_t = rel_t if isinstance(rel_t, (int, float)) and 0 <= rel_t <= _MAX_REL_TOL else _TOL_REL
+    return abs_t, rel_t
+
+
+def _file_sha256(p: Path) -> str:
+    h = hashlib.sha256()
+    with open(p, "rb") as fh:
+        for chunk in iter(lambda: fh.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def _replay_scalar(f: dict, value: Any) -> bool:
     expected = f.get("value")
     if expected is None:  # guard: a missing value must never replay green
         return False
+    abs_t, rel_t = _tols(f)
     if isinstance(expected, (int, float)) and isinstance(value, (int, float)):
-        return math.isclose(expected, value, rel_tol=_TOL_REL, abs_tol=_TOL_ABS)
+        return math.isclose(expected, value, rel_tol=rel_t, abs_tol=abs_t)
     return expected == value
 
 
@@ -358,11 +480,12 @@ def _replay_distribution(f: dict, dist: dict) -> bool:
         return False
     if not isinstance(dist, dict):
         return False
+    abs_t, rel_t = _tols(f)
     for k, v in expected.items():
         actual = dist.get(k)
         if actual is None:
             return False
-        if not math.isclose(actual, v, rel_tol=_TOL_REL, abs_tol=_TOL_ABS):
+        if not math.isclose(actual, v, rel_tol=rel_t, abs_tol=abs_t):
             return False
     return True
 
@@ -395,12 +518,13 @@ def _replay_matrix(f: dict, mat: Any) -> bool:
         return False
     if len(expected) != len(mat):
         return False
+    abs_t, rel_t = _tols(f)
     for row_e, row_a in zip(expected, mat):
         if len(row_e) != len(row_a):
             return False
         for e, a in zip(row_e, row_a):
             if isinstance(e, (int, float)) and isinstance(a, (int, float)):
-                if not math.isclose(e, a, rel_tol=_TOL_REL, abs_tol=_TOL_ABS):
+                if not math.isclose(e, a, rel_tol=rel_t, abs_tol=abs_t):
                     return False
             elif e != a:
                 return False
@@ -451,6 +575,13 @@ def replay_finding(f: dict, decisions_mod) -> tuple[bool, str]:
         src = ROOT / dc["source"]
         if not src.exists():
             return False, f"source {src} missing"
+        # Input identity: if the finding pinned the source hash, the file must
+        # still match it. This is a stronger drift signal than row count — it
+        # catches mutated cells, reordered rows, and schema changes that leave
+        # the count unchanged.
+        stored_hash = dc.get("source_sha256")
+        if stored_hash and _file_sha256(src) != stored_hash:
+            return False, f"source {dc['source']} changed since recorded (sha256 mismatch — data drift)"
         df = pd.read_csv(src) if src.suffix == ".csv" else pd.read_excel(src)
         df = _apply_filters(df, dc.get("filters", []), decisions_mod)
         if len(df) != dc["row_count_after_filter"]:
@@ -523,11 +654,14 @@ def main() -> int:
     check_revision_history(findings)
     check_caveats_array(findings)
     check_data_contract_shape(findings)
+    check_tolerances(findings)
+    check_source_hash_consistency(findings)
     check_trust_memo_orphans(findings)
 
     project_specific_checks(findings)
 
     if not args.fast:
+        check_schema_drift(findings)
         run_replay(findings)
 
     print()

@@ -1,6 +1,6 @@
 [project]
 name = "analysis-kit"
-version = "0.2.1"
+version = "0.3.0"
 description = "Scaffolding for agentic data-analysis projects with Claude Code as the operator"
 readme = "README.md"
 requires-python = ">=3.11"

@@ -66,6 +66,73 @@ register(
     assert "OBSERVED" in result.stderr and "measurement_ref" in result.stderr
 
 
+def test_register_computed_stores_executed_value(project_with_fixture: Path) -> None:
+    """register_computed runs code_path and stores the RETURNED value — a value
+    passed in by the caller is ignored. This is the execution-primary guard:
+    the number cannot be divorced from the code that produced it."""
+    p = project_with_fixture
+    (p / "analysis" / "02_profile.py").write_text(
+        "def median_session_rating(df):\n    return float(df['session_rating'].median())\n"
+    )
+    code = """
+import sys; sys.path.insert(0, '.')
+from analysis._findings import register_computed
+f = register_computed(
+    id='F-001', claim='median', check_type='scalar',
+    code_path='analysis/02_profile.py:median_session_rating',
+    value=999.0,  # a lie — must be overwritten by the computed result
+    data_contract={'source':'reference/raw-data/sessions.csv','filters':[],
+                   'columns':['session_rating'],'row_count_after_filter':0},
+    caveats=[], counterfactual_tag='WEAK')
+print('VALUE', f['value'])
+"""
+    res = _run_in_project(p, code)
+    assert res.returncode == 0, res.stderr
+    assert "VALUE 4.0" in res.stdout  # computed median, not the 999 lie
+    findings = json.loads((p / "analysis" / "output" / "findings.json").read_text())
+    assert findings[0]["value"] == 4.0
+    assert findings[0]["data_contract"]["row_count_after_filter"] == 10  # actual count
+    assert "source_sha256" in findings[0]["data_contract"]
+
+
+def test_register_computed_result_actually_replays(project_with_fixture: Path) -> None:
+    """A finding created by register_computed must pass validate.py replay —
+    end-to-end proof the stored value matches what the code produces."""
+    p = project_with_fixture
+    (p / "analysis" / "02_profile.py").write_text(
+        "def mean_rating(df):\n    return float(df['session_rating'].mean())\n"
+    )
+    code = """
+import sys; sys.path.insert(0, '.')
+from analysis._findings import register_computed
+register_computed(
+    id='F-001', claim='mean', check_type='scalar',
+    code_path='analysis/02_profile.py:mean_rating',
+    data_contract={'source':'reference/raw-data/sessions.csv','filters':[],
+                   'columns':['session_rating'],'row_count_after_filter':0},
+    caveats=[], counterfactual_tag='WEAK')
+"""
+    res = _run_in_project(p, code)
+    assert res.returncode == 0, res.stderr
+    validate = subprocess.run(["python", "analysis/validate.py"], cwd=p, capture_output=True, text=True)
+    assert validate.returncode == 0, validate.stdout + validate.stderr
+    assert "value matches" in validate.stdout
+
+
+def test_register_computed_rejects_non_numeric_type(scaffolded_project: Path) -> None:
+    code = """
+import sys; sys.path.insert(0, '.')
+from analysis._findings import register_computed
+register_computed(id='F-001', claim='x', check_type='quote_provenance',
+    code_path='analysis/02_profile.py:fn',
+    data_contract={'source':'x.csv','filters':[],'columns':[],'row_count_after_filter':0},
+    caveats=[], counterfactual_tag='WEAK')
+"""
+    res = _run_in_project(scaffolded_project, code)
+    assert res.returncode != 0
+    assert "replayable numeric" in res.stderr
+
+
 def test_next_id_increments(scaffolded_project: Path) -> None:
     p = scaffolded_project
     # Pre-seed
