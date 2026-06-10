@@ -8,7 +8,8 @@ This is **scaffolding**, not a runtime library. Once a project is created, it ha
 
 ## Documentation
 
-- 📖 **[USER_GUIDE.md](docs/USER_GUIDE.md)** — read this first. Plain-language tour with diagrams: how validation works, every template explained, common workflows, troubleshooting, when not to use.
+- 🗺️ **[CONCEPTS.md](docs/CONCEPTS.md)** — start here. The mental-model map: the main features in plain language and how they relate, with diagrams.
+- 📖 **[USER_GUIDE.md](docs/USER_GUIDE.md)** — the detailed hands-on tour: how validation works, every template explained, common workflows, troubleshooting, when not to use.
 - [PHILOSOPHY.md](docs/PHILOSOPHY.md) — principles
 - [PROVENANCE_CONTRACT.md](docs/PROVENANCE_CONTRACT.md) — `findings.json` schema reference
 - [COUNTERFACTUAL_TAGGING.md](docs/COUNTERFACTUAL_TAGGING.md) — `OBSERVED` / `PLAUSIBLE` / `WEAK` rules
