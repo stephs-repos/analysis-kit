@@ -23,25 +23,28 @@ re-runnable finding is the other, and `validate.py` checks they agree.
 
 ```mermaid
 flowchart TD
-  memo["A claim in a memo / vignette<br/>median rating is 4.2 (n=312)"] -->|cites| F
+  memo["1 · A claim in a memo / vignette<br/>median rating is 4.2 (n=312)"] -->|cites| F
 
-  F["Finding F-001<br/>(one row in findings.json,<br/>the claims ledger)"]
+  F["1 · Finding F-001<br/>(one row in findings.json,<br/>the claims ledger)"]
 
-  F --> code["<b>code_path</b><br/>a function that recomputes the value"]
-  F --> input["<b>input</b><br/>which files (+ content hash), which columns"]
-  F --> repro["<b>reproducibility</b><br/>which filters, expected row count"]
-  F --> tag["<b>counterfactual_tag</b><br/>how strong is the evidence"]
-  F --> cav["<b>caveats</b><br/>data-quality preconditions"]
+  F --> code["4 · <b>code_path</b><br/>a function that recomputes the value"]
+  F --> input["3 · <b>input</b><br/>which files (+ content hash), which columns"]
+  F --> repro["3 · <b>reproducibility</b><br/>which filters, expected row count"]
+  F --> tag["8 · <b>counterfactual_tag</b><br/>how strong is the evidence"]
+  F --> cav["9 · <b>caveats</b><br/>data-quality preconditions"]
 
-  repro --> dec["DR-NNN filters<br/>analysis/_decisions.py"]
-  cav --> mem["memory/*.md"]
+  repro --> dec["5 · DR-NNN filters<br/>analysis/_decisions.py"]
+  cav --> mem["9 · memory/*.md"]
 
-  validate["<b>validate.py</b> — the trust gate"] -->|re-runs every finding| F
-  validate --> exit{{"exit 0 = trustworthy<br/>exit ≠ 0 = stop, fix"}}
-  hooks["hooks"] -->|run automatically| validate
+  validate["7 · <b>validate.py</b> — the trust gate"] -->|re-runs every finding| F
+  validate --> exit{{"7 · exit 0 = trustworthy<br/>exit ≠ 0 = stop, fix"}}
+  hooks["11 · hooks"] -->|run automatically| validate
 ```
 
-Everything below is just these boxes explained one at a time.
+Each box is tagged with the **number of the section below that explains it** — so
+you can read the map here, then jump to the write-up for any piece. (Boxes that
+share a number, like `input`/`reproducibility` at section 3, are explained
+together.) Everything below is just these boxes, one at a time.
 
 ## 1. The finding — the unit of trust
 
@@ -69,7 +72,7 @@ F-001  ◀── id; cite this everywhere
 └─ revision_history    [ … ]                                       ◀── append-only audit trail
 ```
 
-You don't hand-write this JSON — you call a helper (see §6).
+You don't hand-write this JSON — you call a helper (see section 6).
 
 ## 2. check_type — the kind of claim
 
@@ -176,7 +179,7 @@ do not ship.
 still re-derives from the declared data and code, so it hasn't silently drifted. It
 does **not** prove *correctness* — if you pointed a finding at the wrong column or
 cohort, replay will faithfully confirm the wrong number. That boundary is what the
-counterfactual tag (§8) and human review are for.
+counterfactual tag (section 8) and human review are for.
 
 ## 8. Counterfactual tags — honesty about evidence
 
