@@ -72,7 +72,7 @@ After bootstrap, the new project is a **complete artefact**. You can delete `~/d
 
 - **For you (the project author):** clone analysis-kit once on your laptop, then use the bootstrap script every time you start a new project.
 - **For teammates joining a scaffolded project:** they clone the *project repo*, not analysis-kit. They only need analysis-kit if they want to scaffold their own new project.
-- **For upgrades:** when analysis-kit ships v0.3, your existing projects don't change automatically. To pull in new check_types or hooks, manually copy the new `validate.py` over and run any migration script. The scaffolded project is a snapshot, pinned via `analysis-kit.json`'s `framework_version`.
+- **For upgrades:** when analysis-kit ships a new version, your existing projects don't change automatically. To pull in new check_types or hooks, manually copy the new `validate.py` over and run any migration script. The scaffolded project is a snapshot, pinned via `analysis-kit.json`'s `framework_version`.
 
 ## Why use it?
 
@@ -147,7 +147,9 @@ That's it. You now have a project that:
 
 3. **Have Claude fill in the `{{MUST_CUSTOMIZE}}` markers.** The templates ship with marker text in places that need project-specific content (CLAUDE.md, the six live-docs, memory entries, the stub `_decisions.py`/`schemas.py`/`02_profile.py` files). With Claude Code open in the project, paste this:
 
-   > Run `bootstrap/check-must-customize.sh` and walk through the unfilled markers. Propose a draft for each based on what we've discussed and what you can infer from the data and related project documents in `@reference/`.
+   > Walk through the unfilled `{{MUST_CUSTOMIZE}}` markers in this project (or run `/akit-fill` if the skills are installed). Propose a draft for each based on what we've discussed and what you can infer from the data and related project documents in `@reference/`.
+
+   (The marker-scanner, `check-must-customize.sh`, lives in your analysis-kit clone — not in the scaffolded project — so invoke it by its full path as in step 4 below, or let `/akit-fill` resolve it for you.)
 
    Claude reads the inline instruction inside each marker, plus the reference materials and raw data you dropped in steps 1 and 2, and proposes drafts. You review and edit. The cost of having Claude draft (vs. you doing it from scratch) is what makes the discipline cheap enough to actually follow.
 
@@ -1123,7 +1125,7 @@ You'll see the actual stdout/stderr.
 Full-mode validate scales with the number of findings × cost of replay. If it's >60s, you have several options:
 
 1. Use `--fast` in your hook, full only at commit time. (This is the default.)
-2. Split your findings into multiple files (not yet supported in v0.2; coming).
+2. Split your findings into multiple files (not yet supported; on the roadmap).
 3. Cache filter results between findings that share a contract (not yet supported).
 
 ### "I changed a filter and now half my findings fail"
@@ -1166,7 +1168,7 @@ The framework version is pinned in `analysis-kit.json`:
 
 ```json
 {
-  "framework_version": "0.2.0",
+  "framework_version": "1.0.0",
   ...
 }
 ```

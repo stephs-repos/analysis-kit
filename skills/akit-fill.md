@@ -14,7 +14,14 @@ This is the highest-stakes skill in the set: the content set here propagates int
 1. Confirm the cwd is an analysis-kit project: `analysis-kit.json` must exist. If not, stop and tell the user:
    "this doesn't look like an analysis-kit project. Run `/akit-start <name>` first, or `cd` to a project root."
 
-2. Run `bash bootstrap/check-must-customize.sh .` (or wherever the script lives — the bootstrap installs it at the project root path or you can find it via the analysis-kit clone). Capture the file list.
+2. The marker-scanner lives in the analysis-kit clone, not in the scaffolded project. Resolve its path and run it against the current project:
+
+   ```bash
+   AKIT_ROOT=__AKIT_ROOT__
+   bash "$AKIT_ROOT/bootstrap/check-must-customize.sh" .
+   ```
+
+   (`__AKIT_ROOT__` is substituted with the absolute path to the kit when the skill is installed.) Capture the file list.
 
 3. If 0 markers remain, tell the user "nothing to fill; you're set" and stop.
 
@@ -59,7 +66,7 @@ This is the highest-stakes skill in the set: the content set here propagates int
       On `e`: take the user's text verbatim, replace the marker with it.
       On `s`: leave the marker untouched. Note the file/location in a "skipped" list.
 
-7. After processing all files (skipping the `analysis/` ones per step 5), re-run `bash bootstrap/check-must-customize.sh .` and report:
+7. After processing all files (skipping the `analysis/` ones per step 5), re-run `bash "$AKIT_ROOT/bootstrap/check-must-customize.sh" .` and report:
 
    - X markers filled
    - Y skipped (list locations so the user can return to them)
