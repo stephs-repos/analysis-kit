@@ -336,9 +336,10 @@ def test_alpha_suffix_ids_accepted(scaffolded_project: Path) -> None:
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-def test_replay_skips_only_for_line_refs(scaffolded_project: Path) -> None:
-    """code_path with :Lstart-Lend is a line reference, not a callable — skip
-    is the correct behaviour for these and they should NOT fail replay.
+def test_typed_finding_rejects_line_ref_code_path(scaffolded_project: Path) -> None:
+    """A replayable check_type (scalar) with a line-ref code_path must FAIL — a
+    value that cannot be re-run is not a verified value. This is the #1 hole:
+    previously such a finding printed a green 'REPLAY ok (skipped)' and exit 0.
     """
     f = _minimal_finding(
         check_type="scalar",
@@ -347,9 +348,313 @@ def test_replay_skips_only_for_line_refs(scaffolded_project: Path) -> None:
         measurement_ref="analysis/02_profile.py:L1-L10",
     )
     write_findings(scaffolded_project, [f])
+    # Fails even in --fast: caught structurally, no code is run.
+    result = run_validate(scaffolded_project, "--fast")
+    assert result.returncode != 0, result.stdout + result.stderr
+    assert "line reference" in result.stdout
+
+
+def test_bare_code_path_rejected(scaffolded_project: Path) -> None:
+    """A code_path with no ':function' suffix must FAIL — it can never replay.
+    Previously this was the easiest way to ship an unverifiable number.
+    """
+    f = _minimal_finding(check_type="scalar", code_path="analysis/02_profile.py", value=999.0)
+    write_findings(scaffolded_project, [f])
+    result = run_validate(scaffolded_project, "--fast")
+    assert result.returncode != 0, result.stdout + result.stderr
+    assert "code_path" in result.stdout
+
+
+def test_invalid_code_path_suffix_rejected(scaffolded_project: Path) -> None:
+    """A suffix that is neither a function name nor Lstart-Lend must FAIL."""
+    f = _minimal_finding(check_type="scalar", code_path="analysis/02_profile.py:123", value=4.0)
+    write_findings(scaffolded_project, [f])
+    result = run_validate(scaffolded_project, "--fast")
+    assert result.returncode != 0
+    assert "neither a function name" in result.stdout
+
+
+def test_manual_finding_allows_line_ref(scaffolded_project: Path) -> None:
+    """Line refs remain valid for `manual` findings (audit-only, no replay)."""
+    f = _minimal_finding(
+        check_type="manual",
+        code_path="analysis/02_profile.py:L1-L10",
+    )
+    f.pop("value", None)
+    write_findings(scaffolded_project, [f])
     result = run_validate(scaffolded_project)
-    assert result.returncode == 0
-    assert "line-ref" in result.stdout
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "AUDIT" in result.stdout
+
+
+def test_function_named_like_line_ref_is_callable(project_with_fixture: Path) -> None:
+    """Regression: a real function named 'L2_norm' must NOT be misclassified as
+    a line reference (the old fn_name[1:2].isdigit() heuristic did exactly that).
+    """
+    p = project_with_fixture
+    (p / "analysis" / "02_profile.py").write_text("""\
+def L2_norm(df):
+    return float((df["session_rating"] ** 2).sum() ** 0.5)
+""")
+    import math
+    vals = [4, 4.5, 5, 3, 4, 0, 4.5, 5, 3.5, 4]
+    f = _minimal_finding(
+        check_type="scalar",
+        code_path="analysis/02_profile.py:L2_norm",
+        value=round(math.sqrt(sum(v * v for v in vals)), 6),
+        measurement_ref="analysis/02_profile.py:L2_norm",
+    )
+    f["data_contract"]["row_count_after_filter"] = 10
+    write_findings(p, [f])
+    result = run_validate(p)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "value matches" in result.stdout
+
+
+# ── conditional payload enforcement (closes the vacuous-replay hole) ─────────
+
+def test_scalar_missing_value_rejected(scaffolded_project: Path) -> None:
+    """A scalar with no `value` must FAIL structurally — otherwise the function
+    could return None and None == None would replay green."""
+    f = _minimal_finding(check_type="scalar")
+    f.pop("value", None)
+    write_findings(scaffolded_project, [f])
+    result = run_validate(scaffolded_project, "--fast")
+    assert result.returncode != 0
+    assert "value" in result.stdout
+
+
+def test_scalar_value_zero_is_accepted(scaffolded_project: Path) -> None:
+    """A legitimate value of 0 must NOT be rejected by the presence check."""
+    f = _minimal_finding(check_type="scalar", value=0)
+    write_findings(scaffolded_project, [f])
+    result = run_validate(scaffolded_project, "--fast")
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_boolean_value_must_be_bool(scaffolded_project: Path) -> None:
+    f = _minimal_finding(check_type="boolean", value=1)  # int, not bool
+    write_findings(scaffolded_project, [f])
+    result = run_validate(scaffolded_project, "--fast")
+    assert result.returncode != 0
+    assert "bool" in result.stdout
+
+
+def test_distribution_missing_field_rejected(scaffolded_project: Path) -> None:
+    f = _minimal_finding(check_type="distribution")
+    f.pop("value", None)
+    write_findings(scaffolded_project, [f])
+    result = run_validate(scaffolded_project, "--fast")
+    assert result.returncode != 0
+    assert "distribution" in result.stdout
+
+
+def test_distribution_empty_object_rejected(scaffolded_project: Path) -> None:
+    """An empty distribution {} previously replayed vacuously (empty loop → True)."""
+    f = _minimal_finding(check_type="distribution")
+    f.pop("value", None)
+    f["distribution"] = {}
+    write_findings(scaffolded_project, [f])
+    result = run_validate(scaffolded_project, "--fast")
+    assert result.returncode != 0
+
+
+def test_matrix_missing_field_rejected(scaffolded_project: Path) -> None:
+    f = _minimal_finding(check_type="matrix")
+    f.pop("value", None)
+    write_findings(scaffolded_project, [f])
+    result = run_validate(scaffolded_project, "--fast")
+    assert result.returncode != 0
+    assert "matrix" in result.stdout
+
+
+def test_quote_provenance_requires_quote_and_locator(scaffolded_project: Path) -> None:
+    f = _minimal_finding(check_type="quote_provenance")
+    f.pop("value", None)
+    write_findings(scaffolded_project, [f])
+    result = run_validate(scaffolded_project, "--fast")
+    assert result.returncode != 0
+    assert "quote" in result.stdout
+
+
+# ── replay coverage for previously-untested check_types ──────────────────────
+
+def test_distribution_replays(project_with_fixture: Path) -> None:
+    p = project_with_fixture
+    (p / "analysis" / "02_profile.py").write_text("""\
+def rating_quartiles(df):
+    s = df["session_rating"]
+    return {"min": float(s.min()), "median": float(s.median()), "max": float(s.max())}
+""")
+    f = _minimal_finding(
+        check_type="distribution",
+        code_path="analysis/02_profile.py:rating_quartiles",
+        measurement_ref="analysis/02_profile.py:rating_quartiles",
+    )
+    f.pop("value", None)
+    f["distribution"] = {"min": 0.0, "median": 4.0, "max": 5.0}
+    f["data_contract"]["row_count_after_filter"] = 10
+    write_findings(p, [f])
+    result = run_validate(p)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "value matches" in result.stdout
+
+
+def test_distribution_catches_drift(project_with_fixture: Path) -> None:
+    p = project_with_fixture
+    (p / "analysis" / "02_profile.py").write_text("""\
+def rating_quartiles(df):
+    s = df["session_rating"]
+    return {"min": float(s.min()), "median": float(s.median()), "max": float(s.max())}
+""")
+    f = _minimal_finding(
+        check_type="distribution",
+        code_path="analysis/02_profile.py:rating_quartiles",
+        measurement_ref="analysis/02_profile.py:rating_quartiles",
+    )
+    f.pop("value", None)
+    f["distribution"] = {"min": 0.0, "median": 3.0, "max": 5.0}  # median is wrong
+    f["data_contract"]["row_count_after_filter"] = 10
+    write_findings(p, [f])
+    result = run_validate(p)
+    assert result.returncode != 0
+    assert "value mismatch" in result.stdout
+
+
+def test_proportion_replays(project_with_fixture: Path) -> None:
+    p = project_with_fixture
+    (p / "analysis" / "02_profile.py").write_text("""\
+def share_five_star(df):
+    return float((df["session_rating"] == 5).mean())
+""")
+    f = _minimal_finding(
+        check_type="proportion",
+        code_path="analysis/02_profile.py:share_five_star",
+        value=0.2,  # 2 of 10 rows are 5.0
+        measurement_ref="analysis/02_profile.py:share_five_star",
+    )
+    f["data_contract"]["row_count_after_filter"] = 10
+    write_findings(p, [f])
+    result = run_validate(p)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_quote_provenance_replays_and_catches_missing(scaffolded_project: Path) -> None:
+    p = scaffolded_project
+    src = p / "reference" / "brief.txt"
+    src.parent.mkdir(parents=True, exist_ok=True)
+    src.write_text("The stakeholder cares most about retention in week one.\n")
+    good = _minimal_finding(
+        fid="F-001",
+        check_type="quote_provenance",
+        code_path="analysis/02_profile.py:median_session_rating",
+    )
+    good.pop("value", None)
+    good["quote"] = "retention in week one"
+    good["source_locator"] = "reference/brief.txt:L1"
+    write_findings(p, [good])
+    result = run_validate(p)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "quote found" in result.stdout
+
+    bad = dict(good)
+    bad["quote"] = "a sentence that is not present"
+    write_findings(p, [bad])
+    result = run_validate(p)
+    assert result.returncode != 0
+    assert "quote not found" in result.stdout
+
+
+def test_quote_provenance_path_traversal_blocked(scaffolded_project: Path) -> None:
+    """A source_locator escaping the project root must not 'verify' — the claim
+    would not be reproducible from repo state."""
+    p = scaffolded_project
+    secret = p.parent / "outside_secret.txt"
+    secret.write_text("retention in week one\n")
+    try:
+        f = _minimal_finding(check_type="quote_provenance",
+                             code_path="analysis/02_profile.py:median_session_rating")
+        f.pop("value", None)
+        f["quote"] = "retention in week one"
+        f["source_locator"] = "../outside_secret.txt:L1"
+        write_findings(p, [f])
+        result = run_validate(p)
+        assert result.returncode != 0
+        assert "quote not found" in result.stdout
+    finally:
+        secret.unlink(missing_ok=True)
+
+
+# ── tolerance boundary ───────────────────────────────────────────────────────
+
+def test_replay_tolerance_boundary(project_with_fixture: Path) -> None:
+    """The numeric tolerance is the trust contract for scalar claims. Pin it:
+    a value within 1e-6 replays green; just outside fails. Guards against a
+    careless 'make replay less flaky' loosening."""
+    p = project_with_fixture
+    _install_replay_target(p)  # median = 4.0
+    within = _minimal_finding(
+        check_type="scalar",
+        code_path="analysis/02_profile.py:median_session_rating",
+        value=4.0000005,  # 5e-7 < 1e-6
+        measurement_ref="analysis/02_profile.py:median_session_rating",
+    )
+    within["data_contract"]["row_count_after_filter"] = 10
+    write_findings(p, [within])
+    assert run_validate(p).returncode == 0
+
+    outside = dict(within)
+    outside["value"] = 4.001  # 1e-3 ≫ 1e-6
+    write_findings(p, [outside])
+    assert run_validate(p).returncode != 0
+
+
+# ── graceful failure on malformed input (no traceback) ───────────────────────
+
+def test_non_object_entry_fails_gracefully(scaffolded_project: Path) -> None:
+    out = scaffolded_project / "analysis" / "output" / "findings.json"
+    out.write_text(json.dumps(["not an object"]))
+    result = run_validate(scaffolded_project, "--fast")
+    assert result.returncode != 0
+    assert "Traceback" not in result.stderr, result.stderr
+    assert "object" in result.stdout
+
+
+def test_null_fields_fail_gracefully(scaffolded_project: Path) -> None:
+    out = scaffolded_project / "analysis" / "output" / "findings.json"
+    out.write_text(json.dumps([{"id": None, "claim": None, "code_path": None}]))
+    result = run_validate(scaffolded_project, "--fast")
+    assert result.returncode != 0
+    assert "Traceback" not in result.stderr, result.stderr
+
+
+def test_malformed_json_fails_gracefully(scaffolded_project: Path) -> None:
+    out = scaffolded_project / "analysis" / "output" / "findings.json"
+    out.write_text("{not valid json")
+    result = run_validate(scaffolded_project, "--fast")
+    assert result.returncode != 0
+    assert "Traceback" not in result.stderr, result.stderr
+
+
+def test_broken_decisions_module_fails_gracefully(project_with_fixture: Path) -> None:
+    """A syntax error in _decisions.py must be a clean replay failure, not a
+    crash that aborts every other finding's check."""
+    p = project_with_fixture
+    _install_replay_target(p)
+    (p / "analysis" / "_decisions.py").write_text("def DR_001(df):\n    return df[\n")  # syntax error
+    f = _minimal_finding(
+        check_type="scalar",
+        code_path="analysis/02_profile.py:median_session_rating",
+        value=4.0,
+        measurement_ref="analysis/02_profile.py:median_session_rating",
+    )
+    f["data_contract"]["filters"] = ["DR-001"]
+    f["data_contract"]["row_count_after_filter"] = 9
+    write_findings(p, [f])
+    result = run_validate(p)
+    assert result.returncode != 0
+    assert "Traceback" not in result.stderr, result.stderr
+    assert "_decisions" in result.stdout
 
 
 # ── helpers ─────────────────────────────────────────────────────────────────

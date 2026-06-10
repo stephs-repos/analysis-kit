@@ -31,7 +31,9 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import math
 import os
+import re
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -39,8 +41,27 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 FINDINGS = ROOT / "analysis" / "output" / "findings.json"
 
-VALID_CHECK_TYPES = {"scalar", "distribution", "matrix", "quote_provenance", "proportion", "rate"}
+# Keep this set in lockstep with validate.py's VALID_CHECK_TYPES — the helper
+# must not accept a check_type the validator rejects (or vice versa).
+VALID_CHECK_TYPES = {
+    "scalar", "distribution", "matrix", "quote_provenance",
+    "proportion", "rate", "boolean", "manual",
+}
 VALID_TAGS = {"OBSERVED", "PLAUSIBLE", "WEAK"}
+REPLAYABLE_TYPES = {"scalar", "proportion", "rate", "boolean", "distribution", "matrix"}
+
+
+def _suffix_kind(suffix: str) -> str:
+    """Classify a code_path suffix: 'callable', 'line_ref', or 'invalid'.
+
+    Mirrors validate.py — a callable is a Python identifier, a line_ref is
+    'Lstart-Lend', everything else is invalid.
+    """
+    if re.fullmatch(r"L\d+(-L?\d+)?", suffix):
+        return "line_ref"
+    if suffix.isidentifier():
+        return "callable"
+    return "invalid"
 
 
 def _load() -> list[dict[str, Any]]:
@@ -55,7 +76,10 @@ def _atomic_write(data: list[dict]) -> None:
     fd, tmp = tempfile.mkstemp(prefix=".findings.", suffix=".json", dir=FINDINGS.parent)
     try:
         with os.fdopen(fd, "w") as f:
-            json.dump(data, f, indent=2, sort_keys=False)
+            # allow_nan=False: NaN/Infinity are not valid JSON and break jq, the
+            # bash hooks, and any non-Python reader. A NaN value also can never
+            # replay (math.isclose(nan, nan) is False), so reject it at the source.
+            json.dump(data, f, indent=2, sort_keys=False, allow_nan=False)
             f.write("\n")
         os.replace(tmp, FINDINGS)
     except Exception:
@@ -72,12 +96,44 @@ def _validate(f: dict[str, Any]) -> None:
     for k in required:
         if k not in f:
             raise ValueError(f"missing required field {k!r}")
-    if f["check_type"] not in VALID_CHECK_TYPES:
-        raise ValueError(f"unknown check_type {f['check_type']!r}")
+    ct = f["check_type"]
+    if ct not in VALID_CHECK_TYPES:
+        raise ValueError(f"unknown check_type {ct!r}")
     if f["counterfactual_tag"] not in VALID_TAGS:
         raise ValueError(f"unknown counterfactual_tag {f['counterfactual_tag']!r}")
     if f["counterfactual_tag"] == "OBSERVED" and not f.get("measurement_ref"):
         raise ValueError("OBSERVED tag requires measurement_ref")
+
+    # code_path form: must be 'file.py:function' or 'file.py:Lstart-Lend', and a
+    # replayable check_type must name a runnable function (not a line reference) —
+    # otherwise its value can never be verified.
+    cp = f.get("code_path") or ""
+    if ":" not in cp:
+        raise ValueError("code_path must be 'file.py:function' or 'file.py:Lstart-Lend'")
+    suffix = cp.rsplit(":", 1)[1]
+    kind = _suffix_kind(suffix)
+    if kind == "invalid":
+        raise ValueError(f"code_path suffix {suffix!r} is neither a function name nor Lstart-Lend")
+    if kind == "line_ref" and ct in REPLAYABLE_TYPES:
+        raise ValueError(f"{ct} needs a runnable function in code_path, not a line reference")
+
+    # conditional payload — the fields that make a finding replayable
+    if ct in {"scalar", "proportion", "rate"} and f.get("value") is None:
+        raise ValueError(f"{ct} finding requires a non-null 'value'")
+    if ct == "boolean" and not isinstance(f.get("value"), bool):
+        raise ValueError("boolean finding requires a bool 'value'")
+    if ct == "distribution" and not (isinstance(f.get("distribution"), dict) and f.get("distribution")):
+        raise ValueError("distribution finding requires a non-empty 'distribution' object")
+    if ct == "matrix" and not (isinstance(f.get("matrix"), list) and f.get("matrix")):
+        raise ValueError("matrix finding requires a non-empty 'matrix' list")
+    if ct == "quote_provenance" and (not f.get("quote") or not f.get("source_locator")):
+        raise ValueError("quote_provenance finding requires 'quote' and 'source_locator'")
+
+    # numeric values must be finite (NaN/Inf are invalid JSON and never replay)
+    v = f.get("value")
+    if isinstance(v, float) and not math.isfinite(v):
+        raise ValueError("value must be finite (no NaN/Inf)")
+
     dc = f["data_contract"]
     for k in ("source", "filters", "columns", "row_count_after_filter"):
         if k not in dc:

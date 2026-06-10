@@ -103,7 +103,17 @@ chmod +x "$TARGET/.claude/hooks/"*.sh
 # ── git init ───────────────────────────────────────────────────────────────
 
 if [ ! -d "$TARGET/.git" ]; then
-  ( cd "$TARGET" && git init -q && git add -A && git commit -q -m "scaffold from analysis-kit v$FRAMEWORK_VERSION ($TIER tier)" )
+  (
+    cd "$TARGET" && git init -q && git add -A
+    # Fall back to a scaffold identity so the initial commit works on
+    # machines (CI, fresh containers) with no global git config.
+    if git config user.email >/dev/null 2>&1; then
+      git commit -q -m "scaffold from analysis-kit v$FRAMEWORK_VERSION ($TIER tier)"
+    else
+      git -c user.name="analysis-kit" -c user.email="analysis-kit@localhost" \
+        commit -q -m "scaffold from analysis-kit v$FRAMEWORK_VERSION ($TIER tier)"
+    fi
+  )
 fi
 
 # ── done ───────────────────────────────────────────────────────────────────

@@ -119,7 +119,7 @@ def test_check_must_customize_detects_unfilled(scaffolded_project: Path) -> None
 
 def test_manifest_pins_framework_version(scaffolded_project: Path) -> None:
     manifest = json.loads((scaffolded_project / "analysis-kit.json").read_text())
-    assert manifest["framework_version"] == "0.2.0"
+    assert manifest["framework_version"] == "0.2.1"
     assert manifest["tier"] == "minimum"
     assert manifest["project_name"] == "test-proj"
 

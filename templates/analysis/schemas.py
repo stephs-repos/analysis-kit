@@ -1,8 +1,11 @@
 """
 schemas.py — Pandera schemas for raw and processed data.
 
-Pandera handles the column/dtype/range layer of validation. validate.py
-references schemas here to detect schema drift between data refreshes.
+Pandera handles the column/dtype/range layer of validation: shape, types, and
+ranges of the *input*, asserted before any aggregate is computed. This is a
+separate concern from validate.py's replay (which checks that a stored *result*
+re-derives). Call these schemas from your analysis scripts to fail fast on a
+malformed refresh.
 
 Usage in your scripts:
 

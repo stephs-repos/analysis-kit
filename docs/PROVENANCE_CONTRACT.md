@@ -4,10 +4,11 @@ The `findings.json` schema is the API between the operator (Claude) and the trus
 
 ## Current schema version
 
-`framework_version: 0.2.0`. Stored in each project's `analysis-kit.json`.
+`framework_version: 0.2.1`. Stored in each project's `analysis-kit.json`.
 
 ### Changelog
 
+- **0.2.1** — Verifier hardening (no schema change; the validator only gets stricter, matching what this contract always documented). Closed two holes that let a finding pass without being verified: (1) a `code_path` with no function name, or a line reference (`:Lstart-Lend`) on a replayable check_type, now **fails** — a value that can't be re-run isn't a verified value, so replayable check_types must name a runnable function (line references remain valid for `manual` findings and for `measurement_ref`); (2) conditional payload fields (`value`, `distribution`, `matrix`, `quote`/`source_locator`) are now **enforced structurally**, so a payload-less finding can no longer replay vacuously. Also: malformed `findings.json` (non-object entries, null fields, NaN values) fails gracefully instead of crashing; `code_path`/quote sources are confined to the project root; `_findings.register()` rejects the same defects before they reach disk.
 - **0.2.0** — Added `boolean` and `manual` check_types. `boolean` for assertions whose value is a Python bool (`function returns True/False, compared to stored`). `manual` for findings that are structurally documented but not auto-replayable; surface as `AUDIT` lines in validate output and emit a warning. Both surfaced when porting noise-solution's 35-finding set: 5 booleans (data-quality assertions, "X is true/false" findings) and 17 heterogeneous-dict findings that don't fit the typed enum cleanly. Promoted `matrix` from "shipped but untested" to "first-class with regression tests"; expects list-of-lists, element-wise float compare with the project tolerance.
 - **0.1.0** — Initial schema: scalar, distribution, matrix, quote_provenance, proportion, rate.
 
@@ -43,7 +44,7 @@ The `findings.json` schema is the API between the operator (Claude) and the trus
 | `id` | string | `F-NNN`. Monotonic per project. Never reused. |
 | `claim` | string | Human-readable assertion, including `(n=N)`. |
 | `check_type` | enum | `scalar`, `distribution`, `matrix`, `quote_provenance`, `proportion`, `rate`, `boolean`, `manual`. Validate.py dispatches on this. |
-| `code_path` | string | `path/to/file.py:function_name` or `path/to/file.py:Lstart-Lend`. Must resolve. |
+| `code_path` | string | `path/to/file.py:function_name` (a runnable function) or `path/to/file.py:Lstart-Lend` (a line reference). Must resolve. **Replayable check_types** (`scalar`, `proportion`, `rate`, `boolean`, `distribution`, `matrix`) require the `:function_name` form — their value is verified by re-running it. The `:Lstart-Lend` form is only valid for `manual` findings. |
 | `data_contract` | object | See below. |
 | `caveats` | string[] | Cross-references to `memory/data_quality_caveats.md` entries. Empty array is allowed but `validate --strict` warns. |
 | `counterfactual_tag` | enum | `OBSERVED`, `PLAUSIBLE`, `WEAK`. |
@@ -74,9 +75,9 @@ Use when a finding is structurally important but not naturally machine-replayabl
 }
 ```
 
-- `source`: relative path from project root. May be a list for multi-source findings.
+- `source`: relative path from project root to the input file. (Single source per finding; multi-source is planned for v1.0.)
 - `filters`: array of `DR-NNN` ids from `live-docs/DECISIONS.md`. Validate.py uses these to reconstruct the row subset and recompute the value.
-- `columns`: the columns the finding depends on. Schema-drift detection uses this.
+- `columns`: the columns the finding depends on. Documentary in this version (serialized-schema drift detection is planned for v0.3); `row_count_after_filter` is the live drift signal today.
 - `row_count_after_filter`: integer. Lets validate detect silent row-count changes between data refreshes.
 
 ## Replay vs consistency
@@ -91,6 +92,10 @@ Use when a finding is structurally important but not naturally machine-replayabl
 6. Pass if equal within tolerance, fail otherwise.
 
 This is deliberately stricter than "rerun the script and see if numbers match" — it forces the operator to declare what data the claim is *about*, not just what the script happens to compute today.
+
+### What replay does and does not prove
+
+Replay proves **stability**: the stored number still re-derives from the declared data and code, so it has not silently drifted. It does **not** prove **correctness**. In particular, replay cannot detect a *correct computation of the wrong question* — if the operator pointed the finding at the wrong column, cohort, or filter, replay will happily confirm the wrong number re-derives. The `counterfactual_tag` (and human review of the `claim` against the `code_path`) is what guards that boundary; the validator guards drift.
 
 ## Schema migrations
 
