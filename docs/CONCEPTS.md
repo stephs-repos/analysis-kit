@@ -23,7 +23,7 @@ re-runnable finding is the other, and `validate.py` checks they agree.
 
 ```mermaid
 flowchart TD
-  memo["1 · A claim in a memo / vignette<br/>median rating is 4.2 (n=312)"] -->|cites| F
+  memo["1 · A claim in a memo / vignette<br/>median height is 168.5 cm (n=312)"] -->|cites| F
 
   F["1 · Finding F-001<br/>(one row in findings.json,<br/>the claims ledger)"]
 
@@ -57,19 +57,19 @@ Anatomy of one finding:
 
 ```
 F-001  ◀── id; cite this everywhere
-├─ claim               "median session rating is 4.2 (n=312)"     ◀── the words a human reads
-├─ check_type          scalar                                      ◀── what kind of value (how to compare)
-├─ code_path           analysis/02_profile.py:median_rating        ◀── the function that recomputes it
-├─ value               4.2                                         ◀── the number itself
-├─ input                                                           ◀── WHAT the claim is about (before compute)
-│  ├─ sources   [{ path: …/sessions.csv, sha256: 9f86d08… }]
-│  └─ columns   [ session_rating ]
-├─ reproducibility                                                 ◀── HOW to re-derive it (after compute)
+├─ claim              "median height is 168.5 cm (n=312)"   ◀── the words a human reads
+├─ check_type         scalar                                ◀── what kind of value (how to compare)
+├─ code_path          analysis/02_profile.py:median_height  ◀── the function that recomputes it
+├─ value              168.5                                 ◀── the number itself
+├─ input                                                    ◀── WHAT the claim is about (before compute)
+│  ├─ sources   [{ path: …/measurements.csv, sha256: 9f86d08… }]
+│  └─ columns   [ height_cm ]
+├─ reproducibility                                          ◀── HOW to re-derive it (after compute)
 │  ├─ filters   [ DR-001, DR-003 ]
 │  └─ row_count_after_filter   312
-├─ counterfactual_tag  OBSERVED  (+ measurement_ref)               ◀── how strong is the evidence
-├─ caveats             [ zero_sentinel_masked ]                    ◀── preconditions (point into memory/)
-└─ revision_history    [ … ]                                       ◀── append-only audit trail
+├─ counterfactual_tag OBSERVED  (+ measurement_ref)         ◀── how strong is the evidence
+├─ caveats            [ zero_sentinel_masked ]              ◀── preconditions (point into memory/)
+└─ revision_history   [ … ]                                 ◀── append-only audit trail
 ```
 
 You don't hand-write this JSON — you call a helper (see section 6).
@@ -112,7 +112,7 @@ project-specific, not something the validator can guess).
 
 ## 4. The function (`code_path`) — pure recomputation
 
-`code_path` points at a function like `analysis/02_profile.py:median_rating`. The
+`code_path` points at a function like `analysis/02_profile.py:median_height`. The
 rule that makes the whole thing work: **the function takes an already-filtered
 DataFrame and returns the value.** It does *not* read the source file or apply its
 own filters — the validator does that part, using `input` and `reproducibility`.
@@ -162,17 +162,17 @@ from analysis._findings import register_computed, next_id
 
 register_computed(
     id=next_id(),
-    claim="median session rating is 4.2 (n=312)",
+    claim="median height is 168.5 cm (n=312)",
     check_type="scalar",
-    code_path="analysis/02_profile.py:median_rating",          # the function to run
+    code_path="analysis/02_profile.py:median_height",          # the function to run
     input={
-        "sources": [{"path": "reference/raw-data/sessions.csv"}],  # sha256 filled in for you
-        "columns": ["session_rating"],
+        "sources": [{"path": "reference/raw-data/measurements.csv"}],  # sha256 filled in for you
+        "columns": ["height_cm"],
     },
     reproducibility={"filters": ["DR-001"]},                   # row count filled in for you
     caveats=["zero_sentinel_masked"],
     counterfactual_tag="OBSERVED",
-    measurement_ref="analysis/02_profile.py:median_rating",
+    measurement_ref="analysis/02_profile.py:median_height",
 )
 ```
 
