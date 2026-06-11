@@ -117,10 +117,16 @@ rule that makes the whole thing work: **the function takes an already-filtered
 DataFrame and returns the value.** It does *not* read the source file or apply its
 own filters — the validator does that part, using `input` and `reproducibility`.
 
+```mermaid
+flowchart LR
+  A["<b>validate.py</b><br/>read source"] --> B["<b>validate.py</b><br/>apply DR-NNN filters"]
+  B -->|hands over the filtered df| F["<b>your code_path function</b><br/>compute and return the value"]
+  F -->|returns the value| C["<b>validate.py</b><br/>compare to the stored value"]
 ```
-validate.py:   read source ─▶ apply DR-NNN filters ─▶ │ hand the filtered df to the function │ ─▶ compare result
-your function:                                         │ just compute and return              │
-```
+
+`validate.py` owns everything except the middle box — reading the data, filtering
+it, and checking the answer. Your function just receives a clean DataFrame and
+returns a number.
 
 Why the split? If the function applied its own filters, you could change a filter
 rule and the function would happily compute the same answer — the drift would be
