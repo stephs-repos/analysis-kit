@@ -144,15 +144,65 @@ recomputing. One rule, defined once, reused across every finding that needs it.
 
 ## 6. Writing findings — `register_computed`
 
-You add findings from a script, never by editing the JSON by hand (that would
-desync the audit trail). The preferred helper is **`register_computed`**: you give
-it the `code_path`, `input`, and `reproducibility`; it *runs the function for you*
-and stamps the returned value, the actual row count, and the source hashes.
+You never edit `findings.json` by hand. You add findings from a small Python
+script, so the audit trail and the cross-checks stay correct. The helper you'll
+reach for almost every time is **`register_computed`**.
+
+**The problem it solves.** The obvious way to record a finding would be: work out
+the number (in a notebook, in your head), then write it into the finding. But now
+the *same number lives in two places* — your code and the finding — and they can
+drift apart, or a typo (or a bit of wishful rounding) can record a number the code
+never actually produced. Preventing exactly that is the whole point of the kit.
+
+So `register_computed` doesn't let you hand it a number. You tell it **where the
+number comes from**, and it produces the number itself:
+
+```python
+from analysis._findings import register_computed, next_id
+
+register_computed(
+    id=next_id(),
+    claim="median session rating is 4.2 (n=312)",
+    check_type="scalar",
+    code_path="analysis/02_profile.py:median_rating",          # the function to run
+    input={
+        "sources": [{"path": "reference/raw-data/sessions.csv"}],  # sha256 filled in for you
+        "columns": ["session_rating"],
+    },
+    reproducibility={"filters": ["DR-001"]},                   # row count filled in for you
+    caveats=["zero_sentinel_masked"],
+    counterfactual_tag="OBSERVED",
+    measurement_ref="analysis/02_profile.py:median_rating",
+)
+```
+
+Notice the three things you did **not** write: `value`, the source's `sha256`, and
+`row_count_after_filter`. The helper fills those in by actually running the work:
+
+1. loads the source file,
+2. applies the `DR-NNN` filters in order,
+3. runs your `code_path` function on the filtered data,
+4. stores **the value the function returned** — not one you typed,
+5. records the real post-filter row count and each source's content hash,
+6. validates the finished finding and writes it to `findings.json`.
+
+```mermaid
+flowchart LR
+  D["<b>you describe</b><br/>where the number comes from<br/>(code_path + input + filters)"] --> RC["<b>register_computed</b><br/>loads the data, applies the filters,<br/>runs your function"]
+  RC --> V["the number your function <b>returned</b>"]
+  V --> J["written to findings.json<br/>(with the row count + source hash)"]
+```
 
 This is the **execution-primary** guarantee: the stored number is, by
-construction, what the code produced — you can't accidentally (or lazily) record a
-number that doesn't match its code. (`register` is the lower-level form where you
-pass `value` yourself; use it for `quote_provenance`/`manual`.)
+construction, whatever the code produced. You can't fat-finger it, and you can't
+quietly record a flattering number the code doesn't actually compute. (The `claim`
+string — "4.2" — is still prose you write for humans; it's `value`, the computed
+number, that the validator re-checks.)
+
+**When you'd use plain `register` instead.** `register` is the lower-level form
+where you *do* pass the value yourself. You need it only for the two check_types
+that have no single number to recompute: `quote_provenance` (you supply the
+verbatim quote) and `manual` (the value is heterogeneous and audited by hand).
 
 ## 7. validate.py — the trust gate
 
