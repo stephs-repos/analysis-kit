@@ -6,6 +6,17 @@ Agentic data analysis fails in production not because models are bad at code, bu
 
 analysis-kit is built on the bet that *constraining the agent's improvisational surface* produces more trustworthy work than *expanding the agent's capabilities*.
 
+## A concrete failure (and its honest limit)
+
+In 2026, analyst Andy Cotgreave [documented](https://www.linkedin.com/pulse/hallucinations-ai-analytics-still-real-dangerous-andy-cotgreave-w49ze/) a live session where Claude Code built a polished dashboard on US pension worker-surplus data and reported the peak as **2008 / 2.4M workers**. The real peak was **2001 / 5.1M** — wrong year, wrong number, plainly visible on the chart. Four analysts, the live audience, and a follow-up show all missed it. The figure had been **hardcoded into the HTML, not computed** — so nothing re-derived it and nothing flagged it. As Cotgreave puts it: "Decisions get made based on 2008 not 2001. Errors like that could easily be very expensive."
+
+This is the failure analysis-kit is built against, and it splits in two:
+
+- **The orphaned number** — a value baked into output with no traceable code behind it — is exactly what claims-as-first-class-objects and `register_computed` forbid. A number that isn't returned by a `code_path` and replayed by `validate.py` can't become a finding, can't be cited, and can't hide in a chart. The kit turns "an error buried in a dashboard nobody can trace" into "an `F-NNN` with a `code_path` a reviewer can open and re-run."
+- **The honest limit.** If the agent had instead written a function that computed the peak *wrong*, replay would have faithfully confirmed the wrong number forever. **Replay proves a number is *stable* — it re-derives from the declared data and code — not that it is *correct*.** The framework makes a mistake cheap to catch and impossible to orphan; it does not certify that the analysis asked the right question. That last mile stays with the `counterfactual_tag` and a human reviewer (tenet 5).
+
+The lesson the kit takes from incidents like this: the fix for confident-but-wrong analytics is **traceability, not prettier output**.
+
 ## Five tenets
 
 ### 1. Exit code is the trust contract
@@ -22,7 +33,7 @@ Data quality issues (zero sentinels, scale mismatches, ceiling effects, masked r
 
 ### 4. Templates declare shape, projects fill content
 
-The framework ships skeletons with `{{MUST_CUSTOMIZE}}` tokens. Bootstrap refuses to scaffold if any tokens remain unfilled. This stops the failure mode where an LLM completes a template with generic placeholder text that passes structural checks but says nothing.
+The framework ships skeletons with `{{MUST_CUSTOMIZE}}` tokens, and `check-must-customize.sh` lists any that are still unfilled — a project isn't "done" while they remain. This stops the failure mode where an LLM completes a template with generic placeholder text that passes structural checks but says nothing.
 
 ### 5. Counterfactual claims must be defensible
 
