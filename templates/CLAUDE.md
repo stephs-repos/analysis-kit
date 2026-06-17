@@ -4,6 +4,10 @@
 
 This project was scaffolded from [analysis-kit](https://github.com/{{GITHUB_USER}}/analysis-kit) v{{FRAMEWORK_VERSION}}. Framework version is pinned in `analysis-kit.json`; do not edit `analysis/validate.py` core dispatcher logic — fix upstream and migrate.
 
+## First run — resolve the scaffold
+
+If this project still contains `MUST_CUSTOMIZE` markers, resolving them is step one — before any analysis. List them with `grep -rlE '\{\{MUST_CUSTOMIZE' .` (the `\{\{` matches the literal double-brace that opens every marker). Draft each from the materials in `reference/` and the raw data — never with generic placeholder text, which is exactly the failure mode the markers exist to prevent. (`/akit-fill` automates this walk-through if the analysis-kit skills are installed.) The scaffold is set up once that grep returns nothing.
+
 ## Live documents — keep current
 
 | File | Purpose | Update when… |
