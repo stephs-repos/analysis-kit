@@ -4,6 +4,23 @@
 
 Scaffolded from [analysis-kit](https://github.com/{{GITHUB_USER}}/analysis-kit) v{{FRAMEWORK_VERSION}}.
 
+## First: fill in the template
+
+This scaffold ships with `MUST_CUSTOMIZE` markers — double-brace placeholders the templates leave in the spots that need project-specific content: this README, `CLAUDE.md`, the `live-docs/`, the `memory/` entries, and the stub `analysis/` files. **The project isn't set up until they're resolved**, so do this before running anything.
+
+```bash
+# List files that still have unfilled markers (no analysis-kit clone needed).
+# The \{\{ matches the literal double-brace that opens every marker:
+grep -rlE '\{\{MUST_CUSTOMIZE' .
+```
+
+Then fill them in:
+
+- **With the analysis-kit skills installed:** drop your context into `reference/` (see [`reference/README.md`](reference/README.md)), then run `/akit-fill` — it drafts each marker from your reference materials and prompts you to accept/edit/skip.
+- **Without the skills:** open this project in Claude Code and ask it to *"resolve the `MUST_CUSTOMIZE` markers, drafting each from `reference/` and the raw data."*
+
+The structural setup is done when that `grep` returns nothing.
+
 ## Quick start
 
 ```bash

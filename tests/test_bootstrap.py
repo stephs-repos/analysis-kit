@@ -117,6 +117,37 @@ def test_check_must_customize_detects_unfilled(scaffolded_project: Path) -> None
     assert "MUST_CUSTOMIZE" in result.stdout
 
 
+def test_check_must_customize_clean_after_markers_filled(scaffolded_project: Path) -> None:
+    """Regression: once the real ``{{MUST_CUSTOMIZE …}}`` placeholders are filled,
+    the checker must report success — even though onboarding docs (README,
+    CLAUDE.md) legitimately mention the bare word ``MUST_CUSTOMIZE`` in prose.
+
+    The checker keys on the literal placeholder opening, not the bare word, so
+    documentation about markers must not keep a project perpetually 'unfilled'.
+    """
+    import re
+
+    marker = re.compile(r"\{\{MUST_CUSTOMIZE[^}]*\}\}")
+    for f in scaffolded_project.rglob("*"):
+        if not f.is_file():
+            continue
+        try:
+            txt = f.read_text()
+        except (UnicodeDecodeError, OSError):
+            continue
+        filled = marker.sub("filled in", txt)
+        if filled != txt:
+            f.write_text(filled)
+
+    script = Path(__file__).resolve().parent.parent / "bootstrap" / "check-must-customize.sh"
+    result = subprocess.run([str(script), str(scaffolded_project)], capture_output=True, text=True)
+    assert result.returncode == 0, (
+        "checker should report clean once real markers are filled; "
+        f"stdout:\n{result.stdout}"
+    )
+    assert "no MUST_CUSTOMIZE markers remain" in result.stdout
+
+
 def test_manifest_pins_framework_version(scaffolded_project: Path) -> None:
     manifest = json.loads((scaffolded_project / "analysis-kit.json").read_text())
     assert manifest["framework_version"] == "1.0.0"
