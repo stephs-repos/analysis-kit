@@ -219,3 +219,26 @@ def test_minimum_tier_strips_render_deps(tmp_path: Path) -> None:
     assert "jupyter" not in reqs
     assert "pandas" in reqs
     assert "Pinning note" in reqs
+
+
+def test_akit_next_skill_installed(tmp_path: Path) -> None:
+    """install-skills.sh must install the /akit-next conductor with its kit-root
+    token substituted (it shells out to bootstrap/check-must-customize.sh)."""
+    import os
+    kit_root = Path(__file__).resolve().parent.parent
+    script = kit_root / "bootstrap" / "install-skills.sh"
+    env = os.environ.copy()
+    env["HOME"] = str(tmp_path)
+    result = subprocess.run([str(script)], env=env, capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+    installed = tmp_path / ".claude" / "skills" / "akit-next.md"
+    assert installed.exists(), "akit-next.md not installed (missing from SKILL_NAMES?)"
+    txt = installed.read_text()
+    assert "__AKIT_ROOT__" not in txt, "kit-root token should have been substituted"
+    assert str(kit_root) in txt
+
+
+def test_akit_index_references_next(tmp_path: Path) -> None:
+    """The /akit index must point at the conductor so it's discoverable."""
+    index = (Path(__file__).resolve().parent.parent / "skills" / "akit.md").read_text()
+    assert "/akit-next" in index, "akit.md index does not mention /akit-next"

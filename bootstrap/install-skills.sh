@@ -24,7 +24,7 @@ fi
 
 mkdir -p "$TARGET"
 
-SKILL_NAMES=(akit akit-start akit-fill akit-finding)
+SKILL_NAMES=(akit akit-start akit-fill akit-finding akit-next)
 INSTALLED=0
 BACKED_UP=0
 
