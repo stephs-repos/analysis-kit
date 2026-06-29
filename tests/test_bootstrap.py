@@ -221,6 +221,18 @@ def test_minimum_tier_strips_render_deps(tmp_path: Path) -> None:
     assert "Pinning note" in reqs
 
 
+def test_quickstart_ships_in_every_project(tmp_path: Path) -> None:
+    """QUICKSTART.md is the new-user recipe; it must land in both tiers, and the
+    README must point at it so it's discoverable from a fresh clone."""
+    for tier in ("--minimum", "--full"):
+        p = _scaffold(tmp_path / tier.strip("-"), tier)
+        qs = p / "QUICKSTART.md"
+        assert qs.exists(), f"{tier}: QUICKSTART.md missing"
+        body = qs.read_text()
+        assert "/akit-fill" in body and "/akit-finding" in body, "quickstart should name the core skills"
+        assert "QUICKSTART.md" in (p / "README.md").read_text(), f"{tier}: README must link QUICKSTART"
+
+
 def test_akit_next_skill_installed(tmp_path: Path) -> None:
     """install-skills.sh must install the /akit-next conductor with its kit-root
     token substituted (it shells out to bootstrap/check-must-customize.sh)."""
