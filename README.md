@@ -31,13 +31,21 @@ claude            # opens Claude Code; reads CLAUDE.md → follows the disciplin
 
 ### Claude Code skills (optional, recommended)
 
-Install three workflow skills (`/akit-start`, `/akit-fill`, `/akit-finding`) plus an index (`/akit`) globally so Claude Code can guide users through the analysis-kit lifecycle:
+Install the workflow skills globally so Claude Code can guide users through the analysis-kit lifecycle:
 
 ```bash
 ~/dev/analysis-kit/bootstrap/install-skills.sh
 ```
 
-Then in any new project: `/akit-start <name>` → drop reference materials → `/akit-fill` → `/akit-finding "<hypothesis>"` for each claim. See [`skills/`](skills/) for the source markdown.
+| Skill | Role |
+|---|---|
+| `/akit` | Index — explains the workflow and the skills. |
+| `/akit-start <name>` | Scaffold a new project. |
+| `/akit-fill` | Walk the `MUST_CUSTOMIZE` markers (accept/edit/skip each). |
+| `/akit-finding "<hypothesis>"` | Register one finding — the workhorse, used continuously. |
+| `/akit-next` | **Resumable conductor** — detects where the project is and routes you to the single next action. Run it anytime you're unsure what's next. |
+
+Then in any new project: `/akit-start <name>` → drop reference materials → `/akit-fill` → `/akit-finding "<hypothesis>"` for each claim — or just run `/akit-next` and let it route you. Every scaffolded project also ships a step-by-step [`QUICKSTART.md`](templates/QUICKSTART.md). See [`skills/`](skills/) for the source markdown.
 
 ### VS Code dev container (recommended for working on analysis-kit itself)
 
