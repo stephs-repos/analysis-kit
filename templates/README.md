@@ -4,6 +4,8 @@
 
 Scaffolded from [analysis-kit](https://github.com/{{GITHUB_USER}}/analysis-kit) v{{FRAMEWORK_VERSION}}.
 
+> **New here?** Follow [`QUICKSTART.md`](QUICKSTART.md) — a step-by-step recipe from this empty scaffold to your first verified, committed finding. (Or just open Claude Code and type `/akit-next`.)
+
 ## First: fill in the template
 
 This scaffold ships with `MUST_CUSTOMIZE` markers — double-brace placeholders the templates leave in the spots that need project-specific content: this README, `CLAUDE.md`, the `live-docs/`, the `memory/` entries, and the stub `analysis/` files. **The project isn't set up until they're resolved**, so do this before running anything.
