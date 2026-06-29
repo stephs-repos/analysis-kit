@@ -173,3 +173,49 @@ def test_refuses_to_overwrite_nonempty_target(tmp_path: Path) -> None:
     bootstrap = Path(__file__).resolve().parent.parent / "bootstrap" / "new-project.sh"
     result = subprocess.run([str(bootstrap), str(target)], capture_output=True, text=True)
     assert result.returncode != 0
+
+
+def _scaffold(base: Path, tier: str) -> Path:
+    target = base / "proj"
+    bootstrap = Path(__file__).resolve().parent.parent / "bootstrap" / "new-project.sh"
+    subprocess.run(
+        [str(bootstrap), str(target), tier, "--name", "test-proj", "--github-user", "tester"],
+        check=True,
+        capture_output=True,
+    )
+    return target
+
+
+def test_full_tier_has_render_pipeline(tmp_path: Path) -> None:
+    """Full tier ships a renderable vignette stack AND the deps to render it.
+
+    Regression: the vignette template imports matplotlib and uses Quarto's
+    Jupyter engine (needs jupyter + pyyaml), which were historically absent from
+    requirements.txt — so a fresh full-tier project could not render a vignette.
+    """
+    p = _scaffold(tmp_path, "--full")
+    assert (p / "vignettes").exists()
+    assert (p / "_quarto.yml").exists()
+    reqs = (p / "requirements.txt").read_text()
+    for dep in ("matplotlib", "jupyter", "pyyaml"):
+        assert dep in reqs, f"full-tier requirements.txt missing {dep}"
+
+
+def test_rebuild_pipeline_files_present_both_tiers(tmp_path: Path) -> None:
+    """The Makefile and CI trust-gate ship in every tier: validate/findings apply
+    regardless, and the render target self-skips when there's no _quarto.yml."""
+    for tier in ("--minimum", "--full"):
+        p = _scaffold(tmp_path / tier.strip("-"), tier)
+        assert (p / "Makefile").exists(), f"{tier}: Makefile missing"
+        assert (p / ".github" / "workflows" / "trust-contract.yml").exists(), f"{tier}: CI missing"
+
+
+def test_minimum_tier_strips_render_deps(tmp_path: Path) -> None:
+    """Minimum projects have no vignettes, so the render-only deps are stripped,
+    but the base deps and the pinning note remain."""
+    p = _scaffold(tmp_path, "--minimum")
+    reqs = (p / "requirements.txt").read_text()
+    assert "matplotlib" not in reqs
+    assert "jupyter" not in reqs
+    assert "pandas" in reqs
+    assert "Pinning note" in reqs
