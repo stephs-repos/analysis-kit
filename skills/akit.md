@@ -5,7 +5,7 @@ description: Index of the analysis-kit skill set. Run this when the user asks "h
 
 # /akit
 
-Index skill for the analysis-kit workflow. The skill set is deliberately small — three focused skills the user invokes at meaningful moments. There is **no skill that does everything automatically**: every step that could ship a wrong claim requires explicit user accept.
+Index skill for the analysis-kit workflow. The skill set is deliberately small — three focused workflow skills (`/akit-start`, `/akit-fill`, `/akit-finding`) plus `/akit-next`, a resumable conductor that detects where you are and routes you to the next step. There is **no skill that does everything automatically**: every step that could ship a wrong claim requires explicit user accept — `/akit-next` routes and offers, it never decides.
 
 ## The workflow
 
@@ -33,6 +33,7 @@ Index skill for the analysis-kit workflow. The skill set is deliberately small �
 | `/akit-start <name>` | Once per new project. Scaffolds a fresh analysis-kit project. |
 | `/akit-fill` | Once after you've dropped reference materials. Fills in `MUST_CUSTOMIZE` markers across CLAUDE.md, live-docs, and memory entries. |
 | `/akit-finding "..."` | Continuously. Each time you have a concrete claim to register, run this with a one-line hypothesis. |
+| `/akit-next` | Anytime you're unsure of the next step, or returning after a break. Detects the project's phase and routes you to the single next action. |
 
 ## What's deliberately not a skill
 
@@ -49,6 +50,8 @@ Tell them:
 2. Drop raw data into `reference/raw-data/` and project context (brief, dictionary, prior art) into `reference/` directly.
 3. Run `/akit-fill` to populate `MUST_CUSTOMIZE` markers from the reference materials.
 4. Inspect the data with `python analysis/01_inspect_raw.py`.
+
+…or, at any point, just run `/akit-next` — it detects where the project is and tells the user the single next action. It's the lowest-friction entry point for someone who doesn't want to memorise the sequence.
 5. As claims emerge, run `/akit-finding "<one-line hypothesis>"` for each one.
 
 ## Project detection

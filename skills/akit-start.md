@@ -54,6 +54,9 @@ Scaffold a new analysis-kit project from the templates.
       — see reference/README.md for the convention
    3. When the reference materials are in place, run /akit-fill
       to populate MUST_CUSTOMIZE markers across the project
+
+   Unsure what to do at any point? Run /akit-next — it detects the
+   project's phase and tells you the single next step.
    ```
 
 9. Do NOT proceed to fill markers automatically. The user needs to drop reference materials first; without them, `/akit-fill` would have nothing to draft from. Wait for the user to invoke `/akit-fill` themselves.
