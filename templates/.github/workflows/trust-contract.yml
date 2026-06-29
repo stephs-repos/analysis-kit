@@ -1,0 +1,57 @@
+name: trust-contract
+
+# The unbypassable gate. The local .claude/hooks are convenience and can be
+# skipped (--no-verify, a fresh clone without hooks); this CI job is the central,
+# unskippable enforcement of validate.py. Make it a REQUIRED status check on the
+# default branch so a red ledger cannot merge. See docs/REBUILD_PIPELINE.md.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pinned deps
+        run: pip install -r requirements.txt
+
+      # FULL replay re-derives every finding from the RAW DATA and re-checks each
+      # source sha256. reference/raw-data/ is gitignored, so CI must fetch it from
+      # wherever the team stores it (S3 / Drive / artifact) BEFORE this step.
+      #
+      # - name: Fetch raw data
+      #   run: ./scripts/fetch_raw_data.sh   # must restore reference/raw-data/*
+      #
+      # Until raw data is wired in, full replay can't run in CI. Swap to --fast
+      # (structural only, needs no data) by editing the line below.
+      - name: Validate (full replay — needs raw data)
+        run: python analysis/validate.py
+        # run: python analysis/validate.py --fast   # use if raw data isn't fetched
+
+  render:
+    # Mechanical derivation from an already-green ledger; gated on `validate` so
+    # nothing publishes off a red one. A findings-backed vignette reads the
+    # COMMITTED findings.json (not raw data), so it renders without the raw files.
+    # No-ops on the --minimum tier (the Makefile skips when there's no _quarto.yml).
+    needs: validate
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - uses: quarto-dev/quarto-actions/setup@v2
+      - name: Render (clears freeze cache; gated on validate via the Makefile)
+        run: make render
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vignettes
+          path: "**/*.html"
+          if-no-files-found: ignore

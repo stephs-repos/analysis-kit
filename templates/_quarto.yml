@@ -2,6 +2,10 @@ project:
   type: default
 
 execute:
+  # `freeze: auto` re-executes a chunk only when the .qmd SOURCE changes — NOT
+  # when the data or findings.json changes. So a render after a data refresh can
+  # serve stale numbers. There is no `--no-freeze` flag; `make render` deletes the
+  # _freeze/ cache before rendering to force re-execution. See docs/REBUILD_PIPELINE.md.
   freeze: auto
 
 format:

@@ -82,9 +82,15 @@ echo "→ scaffolding $PROJECT_NAME (tier: $TIER) into $TARGET"
 mkdir -p "$TARGET"
 cp -r "$TEMPLATES"/. "$TARGET/"
 
-# Tier filtering — --minimum drops vignette + Quarto bits
+# Tier filtering — --minimum drops vignette + Quarto bits, and the render-only
+# deps in requirements.txt (matplotlib/jupyter/pyyaml are useless without
+# vignettes). The Makefile and CI workflow are kept for both tiers: their
+# validate/findings targets and the trust gate apply regardless, and the render
+# target self-skips when there's no _quarto.yml.
 if [ "$TIER" = "minimum" ]; then
   rm -rf "$TARGET/vignettes" "$TARGET/_quarto.yml"
+  # Strip the full-tier-only render dependency block (from its marker to EOF).
+  sed -i '/^# --- vignette rendering/,$d' "$TARGET/requirements.txt"
 fi
 
 # ── token substitution ─────────────────────────────────────────────────────

@@ -2,3 +2,15 @@ pandas>=2.0
 pandera>=0.30
 numpy>=1.24
 openpyxl>=3.1
+
+# Pinning note: replay compares floats to a tight tolerance, so once you have
+# findings, pin exact versions (==) of pandas/numpy/pandera — an unpinned bump can
+# flip a finding red with no real data change. Bump deliberately, then re-validate.
+
+# --- vignette rendering (full tier only; new-project.sh strips this block for --minimum) ---
+# The vignette template (vignettes/*.qmd) imports matplotlib, and Quarto executes
+# .qmd Python chunks via the Jupyter engine (whose jupyter.py needs pyyaml).
+# Without these a full-tier project cannot render a vignette.
+matplotlib>=3.7
+jupyter>=1.0
+pyyaml>=6.0
