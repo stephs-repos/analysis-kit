@@ -157,6 +157,27 @@ def test_manifest_pins_framework_version(scaffolded_project: Path) -> None:
     assert manifest["project_name"] == "test-proj"
 
 
+def test_manifest_records_kit_provenance(scaffolded_project: Path) -> None:
+    """framework_version outlives template changes, so 'which templates made this
+    scaffold?' must be answerable from the project itself: the manifest and the
+    scaffold commit both record the kit commit that produced it."""
+    kit_root = Path(__file__).resolve().parent.parent
+    head = subprocess.run(
+        ["git", "-C", str(kit_root), "rev-parse", "--short=12", "HEAD"],
+        capture_output=True, text=True,
+    ).stdout.strip()
+    manifest = json.loads((scaffolded_project / "analysis-kit.json").read_text())
+    assert "{{" not in manifest["kit_commit"], "token not substituted"
+    if head:  # git metadata available (not a tarball install)
+        assert manifest["kit_commit"] in (head, f"{head}-dirty")
+    assert manifest["kit_url"].startswith("http"), manifest["kit_url"]
+    log = subprocess.run(
+        ["git", "log", "--oneline"], cwd=scaffolded_project,
+        capture_output=True, text=True, check=True,
+    ).stdout
+    assert manifest["kit_commit"] in log, "scaffold commit message must carry the kit commit"
+
+
 def test_git_initialised_with_first_commit(scaffolded_project: Path) -> None:
     result = subprocess.run(
         ["git", "log", "--oneline"],
