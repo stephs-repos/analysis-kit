@@ -4,7 +4,7 @@ description: How the data owner / audience views the work — informs what gets 
 type: project
 ---
 
-{{MUST_CUSTOMIZE — populate after first stakeholder conversation.}}
+{{MUST_CUSTOMIZE — populate from the brief's framing notes, or after the first stakeholder conversation; skip if neither exists yet.}}
 
 Useful fields:
 
