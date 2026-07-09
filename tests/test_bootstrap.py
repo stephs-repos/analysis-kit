@@ -230,6 +230,7 @@ def test_quickstart_ships_in_every_project(tmp_path: Path) -> None:
         assert qs.exists(), f"{tier}: QUICKSTART.md missing"
         body = qs.read_text()
         assert "/akit-fill" in body and "/akit-finding" in body, "quickstart should name the core skills"
+        assert "/akit-next" in body, "quickstart's primary interface is the conductor"
         assert "QUICKSTART.md" in (p / "README.md").read_text(), f"{tier}: README must link QUICKSTART"
 
 

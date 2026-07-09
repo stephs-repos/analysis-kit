@@ -4,7 +4,7 @@
 
 Scaffolded from [analysis-kit]({{KIT_REPO_URL}}) v{{FRAMEWORK_VERSION}}.
 
-> **New here?** Follow [`QUICKSTART.md`](QUICKSTART.md) — a step-by-step recipe from this empty scaffold to your first verified, committed finding. (Or just open Claude Code and type `/akit-next`.)
+> **New here?** Two things: add your files (raw data → `reference/raw-data/`, project context → `reference/`), then open Claude Code and type `/akit-next` — it guides you through everything else, one step at a time. [`QUICKSTART.md`](QUICKSTART.md) is the two-minute version of what to expect.
 
 ## First: fill in the template
 

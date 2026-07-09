@@ -23,10 +23,7 @@ git clone <this-repo-url> ~/dev/analysis-kit
 cd my-analysis && claude
 ```
 
-From step 3 the kit's docs hand over to two things every scaffold ships with:
-
-- **`QUICKSTART.md`** (in your new project) — the map: empty scaffold → first verified, committed finding, ~20 minutes.
-- **`/akit-next`** — the GPS: detects where the project is and tells you the single next action. Run it anytime, especially when lost or returning after a break.
+From step 3 the interface is deliberately small: **add your files** (raw data → `reference/raw-data/`, project context → `reference/`), then **type `/akit-next`** — it detects where the project is, offers the single next step, and stops at every decision that's yours. Keep typing it until you're done. Every scaffold ships a `QUICKSTART.md` saying exactly this, with a two-minute preview of the phases it will walk you through.
 
 Details and troubleshooting for step 1–2: [`bootstrap/INSTALL.md`](bootstrap/INSTALL.md).
 
