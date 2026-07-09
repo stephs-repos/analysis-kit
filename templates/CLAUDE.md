@@ -2,7 +2,7 @@
 
 **Project goal:** {{MUST_CUSTOMIZE — one paragraph: what this analysis is for, who reads it, what success looks like.}}
 
-This project was scaffolded from [analysis-kit](https://github.com/{{GITHUB_USER}}/analysis-kit) v{{FRAMEWORK_VERSION}}. Framework version is pinned in `analysis-kit.json`; do not edit `analysis/validate.py` core dispatcher logic — fix upstream and migrate.
+This project was scaffolded from [analysis-kit]({{KIT_REPO_URL}}) v{{FRAMEWORK_VERSION}}. Framework version is pinned in `analysis-kit.json`; do not edit `analysis/validate.py` core dispatcher logic — fix upstream and migrate.
 
 ## First run — resolve the scaffold
 

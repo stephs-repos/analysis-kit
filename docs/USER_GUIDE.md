@@ -103,9 +103,7 @@ If those problems are theoretical for you, you might not need this. If two or mo
 
 ## Quick start
 
-Pick the path that matches what you're doing. Most readers want path A.
-
-### A. Use analysis-kit to scaffold a new project (5 minutes)
+This gets you from nothing to a scaffolded project (5 minutes). Everything *after* the scaffold — data in, markers filled, first finding registered — is covered by the `QUICKSTART.md` that ships inside every project, so it isn't repeated here.
 
 ```bash
 # 1. Get analysis-kit
@@ -139,27 +137,7 @@ That's it. You now have a project that:
 - Has a `memory/` directory of preconditions for the agent
 - Is a fresh git repo with one initial commit
 
-**Next steps** — populate the project, then have Claude fill in the templates.
-
-1. **Drop raw data into `reference/raw-data/`.** CSV, Excel, Parquet — whatever you have.
-
-2. **Drop project context into `reference/` directly** (alongside `raw-data/`, not inside it). This means the project brief, the data dictionary, stakeholder correspondence, prior art — anything that gives whoever reads the project a sense of what it's *for*. PDFs are fine for fixed source documents; markdown is preferred for anything you'd edit. See `reference/README.md` in your scaffolded project for the convention.
-
-3. **Have Claude fill in the `{{MUST_CUSTOMIZE}}` markers.** The templates ship with marker text in places that need project-specific content (CLAUDE.md, the six live-docs, memory entries, the stub `_decisions.py`/`schemas.py`/`02_profile.py` files). With Claude Code open in the project, paste this:
-
-   > Walk through the unfilled `{{MUST_CUSTOMIZE}}` markers in this project (or run `/akit-fill` if the skills are installed). Propose a draft for each based on what we've discussed and what you can infer from the data and related project documents in `@reference/`.
-
-   (The marker-scanner, `check-must-customize.sh`, lives in your analysis-kit clone — not in the scaffolded project — so invoke it by its full path as in step 4 below, or let `/akit-fill` resolve it for you.)
-
-   Claude reads the inline instruction inside each marker, plus the reference materials and raw data you dropped in steps 1 and 2, and proposes drafts. You review and edit. The cost of having Claude draft (vs. you doing it from scratch) is what makes the discipline cheap enough to actually follow.
-
-4. **Verify.** Re-run the check until it returns 0:
-
-   ```bash
-   ~/dev/analysis-kit/bootstrap/check-must-customize.sh .
-   ```
-
-   When you see `✓ no MUST_CUSTOMIZE markers remain`, the structural setup is done. From here you start the actual analysis — `python analysis/01_inspect_raw.py` to inspect the data, then begin registering findings via `analysis/_findings.py`.
+**Next steps — continue inside the project.** Your scaffold ships its own `QUICKSTART.md`: the step-by-step recipe from here to your first verified, committed finding (drop in data and context, `/akit-fill` the markers, `/akit-finding` each claim, `validate.py`, commit). Follow that — or just open Claude Code and type `/akit-next`, which detects where the project is and tells you the single next step. The rest of this guide is the depth behind those steps, not a substitute for them.
 
 ## Tour of a scaffolded project
 

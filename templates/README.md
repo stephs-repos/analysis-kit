@@ -2,7 +2,7 @@
 
 {{MUST_CUSTOMIZE — one-paragraph project description.}}
 
-Scaffolded from [analysis-kit](https://github.com/{{GITHUB_USER}}/analysis-kit) v{{FRAMEWORK_VERSION}}.
+Scaffolded from [analysis-kit]({{KIT_REPO_URL}}) v{{FRAMEWORK_VERSION}}.
 
 > **New here?** Follow [`QUICKSTART.md`](QUICKSTART.md) — a step-by-step recipe from this empty scaffold to your first verified, committed finding. (Or just open Claude Code and type `/akit-next`.)
 
