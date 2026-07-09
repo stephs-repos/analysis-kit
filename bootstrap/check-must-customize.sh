@@ -13,7 +13,9 @@
 set -e
 
 TARGET="${1:-.}"
-MARKER="{{MUST_CUSTOMIZE"
+# Built by concatenation so this script never matches itself now that a
+# copy ships inside every scaffold (.claude/akit/).
+MARKER='{{'MUST_CUSTOMIZE
 
 if [ ! -d "$TARGET" ]; then
   echo "not a directory: $TARGET" >&2
@@ -22,6 +24,7 @@ fi
 
 count=$(grep -rFl "$MARKER" "$TARGET" \
   --exclude-dir=.git \
+  --exclude-dir=.claude \
   --exclude-dir=__pycache__ \
   --exclude-dir=.venv \
   --exclude-dir=venv \
@@ -35,6 +38,7 @@ fi
 echo "⚠ $count file(s) still contain MUST_CUSTOMIZE markers:"
 grep -rFl "$MARKER" "$TARGET" \
   --exclude-dir=.git \
+  --exclude-dir=.claude \
   --exclude-dir=__pycache__ \
   --exclude-dir=.venv \
   --exclude-dir=venv \
