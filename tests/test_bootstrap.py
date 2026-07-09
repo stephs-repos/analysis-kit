@@ -234,6 +234,20 @@ def test_quickstart_ships_in_every_project(tmp_path: Path) -> None:
         assert "QUICKSTART.md" in (p / "README.md").read_text(), f"{tier}: README must link QUICKSTART"
 
 
+def test_cheat_sheet_ships_in_every_project(tmp_path: Path) -> None:
+    """CHEAT_SHEET.md is the task→command lookup that complements QUICKSTART.md;
+    it must land in both tiers and be reachable from both entry docs."""
+    for tier in ("--minimum", "--full"):
+        p = _scaffold(tmp_path / tier.strip("-"), tier)
+        cs = p / "CHEAT_SHEET.md"
+        assert cs.exists(), f"{tier}: CHEAT_SHEET.md missing"
+        body = cs.read_text()
+        for must in ("/akit-finding", "validate.py", "DR-NNN", "/akit-next"):
+            assert must in body, f"{tier}: cheat sheet missing {must}"
+        assert "CHEAT_SHEET.md" in (p / "README.md").read_text(), f"{tier}: README must link the cheat sheet"
+        assert "CHEAT_SHEET.md" in (p / "QUICKSTART.md").read_text(), f"{tier}: QUICKSTART must link the cheat sheet"
+
+
 def test_kit_repo_url_substituted(tmp_path: Path) -> None:
     """The 'scaffolded from' links must carry the kit clone's real origin URL,
     not a guess built from --github-user — that guess produced dead links
