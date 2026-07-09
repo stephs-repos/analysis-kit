@@ -1,6 +1,6 @@
 # {{PROJECT_NAME}}
 
-{{MUST_CUSTOMIZE — one-paragraph project description.}}
+{{MUST_CUSTOMIZE — one-paragraph project description, distilled from `memory/project_overview.md` (fill that file first).}}
 
 Scaffolded from [analysis-kit]({{KIT_REPO_URL}}) v{{FRAMEWORK_VERSION}}.
 
@@ -8,7 +8,7 @@ Scaffolded from [analysis-kit]({{KIT_REPO_URL}}) v{{FRAMEWORK_VERSION}}.
 
 ## First: fill in the template
 
-This scaffold ships with `MUST_CUSTOMIZE` markers — double-brace placeholders the templates leave in the spots that need project-specific content: this README, `CLAUDE.md`, the `live-docs/`, the `memory/` entries, and the stub `analysis/` files. **The project isn't set up until they're resolved**, so do this before running anything.
+This scaffold ships with six `MUST_CUSTOMIZE` markers — double-brace placeholders in the spots that need project-specific content. The single source is `memory/project_overview.md` (fill it first); this README's description and the `CLAUDE.md` goal paragraph are distilled from it, and the rest are the stakeholder stance, seed data caveats, and the data-profile inventory. **The project isn't set up until they're resolved**, so do this before running anything. (`FIRST_ENTRY` stubs elsewhere are different: they hold the spot for the first real decision, backlog item, or log entry, and fill themselves during analysis.)
 
 ```bash
 # List files that still have unfilled markers (no analysis-kit clone needed).

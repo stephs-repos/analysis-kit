@@ -8,7 +8,7 @@ Each function that produces a numeric or distributional result should:
 2. Be referenced by code_path in a findings.json entry.
 3. Have its filters declared in the entry's reproducibility block.
 
-{{MUST_CUSTOMIZE}} — replace the example below with your project's profile.
+{{FIRST_ENTRY}} — replace the example below with your project's profile.
 """
 from __future__ import annotations
 

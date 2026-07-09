@@ -31,7 +31,7 @@ Index skill for the analysis-kit workflow. The skill set is deliberately small â
 | Skill | When to invoke |
 |---|---|
 | `/akit-start <name>` | Once per new project. Scaffolds a fresh analysis-kit project. |
-| `/akit-fill` | Once after you've dropped reference materials. Fills in `MUST_CUSTOMIZE` markers across CLAUDE.md, live-docs, and memory entries. |
+| `/akit-fill` | Once after you've dropped reference materials. Fills the six setup markers â€” `memory/project_overview.md` first (the single source for project context), then its CLAUDE.md/README distillations, stakeholder stance, seed caveats, and the data-profile inventory. |
 | `/akit-finding "..."` | Continuously. Each time you have a concrete claim to register, run this with a one-line hypothesis. |
 | `/akit-next` | Anytime you're unsure of the next step, or returning after a break. Detects the project's phase and routes you to the single next action. |
 

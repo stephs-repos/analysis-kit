@@ -1,12 +1,14 @@
 # CLAUDE.md — {{PROJECT_NAME}}
 
-**Project goal:** {{MUST_CUSTOMIZE — one paragraph: what this analysis is for, who reads it, what success looks like.}}
+**Project goal:** {{MUST_CUSTOMIZE — one paragraph distilled from `memory/project_overview.md` (fill that file first): what this analysis is for, who reads it, what success looks like.}}
 
 This project was scaffolded from [analysis-kit]({{KIT_REPO_URL}}) v{{FRAMEWORK_VERSION}}. Framework version is pinned in `analysis-kit.json`; do not edit `analysis/validate.py` core dispatcher logic — fix upstream and migrate.
 
 ## First run — resolve the scaffold
 
 If this project still contains `MUST_CUSTOMIZE` markers, resolving them is step one — before any analysis. List them with `grep -rlE '\{\{MUST_CUSTOMIZE' . --exclude-dir=.claude` (the `\{\{` matches the literal double-brace that opens every marker). Draft each from the materials in `reference/` and the raw data — never with generic placeholder text, which is exactly the failure mode the markers exist to prevent. (`/akit-fill` automates this walk-through if the analysis-kit skills are installed.) The scaffold is set up once that grep returns nothing.
+
+The single source for project context is `memory/project_overview.md` — fill it first; the CLAUDE.md goal paragraph and the README description are distilled from it. Separately, `FIRST_ENTRY` stubs (in the live-docs and `analysis/` files) are **not** setup markers: each marks where the first real entry of its kind lands during analysis (first DR-NNN, first A-NNN, first methodology moment). They resolve themselves through normal work and don't count against setup.
 
 ## Live documents — keep current
 
@@ -39,7 +41,7 @@ Findings have `counterfactual_tag`: `OBSERVED` (measured, requires `measurement_
 
 ## Memory — caveat carriers
 
-`memory/` contains preconditions to consult before aggregating. {{MUST_CUSTOMIZE — populate `memory/data_quality_caveats.md` with this project's specific zero-sentinels, scale mismatches, ceiling effects, masked rows.}}
+`memory/` contains preconditions to consult before aggregating. The register is `memory/data_quality_caveats.md` — zero-sentinels, scale mismatches, ceiling effects, masked rows live there, not here; this file deliberately holds no second copy for content to drift against.
 
 When in doubt, read `memory/data_quality_caveats.md` before computing any aggregate.
 
