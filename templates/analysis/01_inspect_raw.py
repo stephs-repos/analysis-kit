@@ -8,7 +8,7 @@ reason about, not for downstream validation.
 Once you've decided what to formalize, write 02_profile.py and use
 _findings.register() to enter claims.
 
-{{MUST_CUSTOMIZE}} — point RAW_DIR at your raw-data location.
+{{FIRST_ENTRY}} — point RAW_DIR at your raw-data location.
 """
 from __future__ import annotations
 

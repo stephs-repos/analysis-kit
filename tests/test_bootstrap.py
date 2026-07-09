@@ -112,6 +112,73 @@ def test_must_customize_markers_remain(scaffolded_project: Path) -> None:
     assert "MUST_CUSTOMIZE" in txt or "{{MUST_CUSTOMIZE" in txt
 
 
+def test_marker_taxonomy(scaffolded_project: Path) -> None:
+    """Two token classes with a hard boundary. MUST_CUSTOMIZE = the six setup
+    markers /akit-fill walks (project_overview is the single source; the
+    CLAUDE.md goal and README description are distillations of it). FIRST_ENTRY
+    = lifecycle stubs that resolve during analysis — they must NOT carry the
+    setup token or the grep-clean invariant ('set up when the scan returns
+    nothing') becomes unreachable before the first DR-NNN exists."""
+    import re
+    p = scaffolded_project
+    setup_re = re.compile(r"\{\{MUST_CUSTOMIZE", re.DOTALL)
+
+    def markers(rel: str) -> int:
+        return len(setup_re.findall((p / rel).read_text()))
+
+    setup_files = {
+        "CLAUDE.md": 1,
+        "README.md": 1,
+        "memory/project_overview.md": 1,
+        "memory/stakeholder_stance.md": 1,
+        "memory/data_quality_caveats.md": 1,
+        "live-docs/DATA_PROFILE.md": 1,
+    }
+    for rel, n in setup_files.items():
+        assert markers(rel) == n, f"{rel}: expected {n} setup marker(s), got {markers(rel)}"
+
+    # Total setup markers across the scaffold is exactly the six above.
+    total = sum(
+        len(setup_re.findall(f.read_text()))
+        for f in p.rglob("*")
+        if f.is_file() and f.suffix in {".md", ".py", ".json"} and ".claude" not in f.parts
+    )
+    assert total == 6, f"expected exactly 6 setup markers, found {total}"
+
+    # Lifecycle stubs carry FIRST_ENTRY, never the setup token.
+    for rel in (
+        "live-docs/DECISIONS.md", "live-docs/ANALYSIS_BACKLOG.md",
+        "live-docs/METHODOLOGY_LOG.md", "live-docs/TOOLING.md",
+        "live-docs/TRUST_MEMO.md", "analysis/_decisions.py",
+        "analysis/schemas.py", "analysis/01_inspect_raw.py", "analysis/02_profile.py",
+    ):
+        txt = (p / rel).read_text()
+        assert "{{FIRST_ENTRY" in txt, f"{rel}: lifecycle stub missing FIRST_ENTRY"
+        assert not setup_re.search(txt), f"{rel}: lifecycle stub must not carry the setup token"
+
+    # Single-source wiring: the two distillation markers name their source.
+    for rel in ("CLAUDE.md", "README.md"):
+        assert "project_overview.md" in (p / rel).read_text(), \
+            f"{rel}: distillation marker must name memory/project_overview.md as its source"
+
+    # And the scanner must ignore FIRST_ENTRY: fill only the setup markers,
+    # then expect a clean report despite all nine lifecycle stubs remaining.
+    full_marker = re.compile(r"\{\{MUST_CUSTOMIZE.*?\}\}", re.DOTALL)
+    for f in p.rglob("*"):
+        if not f.is_file() or ".claude" in f.parts:
+            continue
+        try:
+            txt = f.read_text()
+        except (UnicodeDecodeError, OSError):
+            continue
+        filled = full_marker.sub("filled in", txt)
+        if filled != txt:
+            f.write_text(filled)
+    scanner = p / ".claude" / "akit" / "check-must-customize.sh"
+    result = subprocess.run(["bash", str(scanner), str(p)], capture_output=True, text=True)
+    assert result.returncode == 0, f"scanner must ignore FIRST_ENTRY stubs:\n{result.stdout}"
+
+
 def test_check_must_customize_detects_unfilled(scaffolded_project: Path) -> None:
     script = Path(__file__).resolve().parent.parent / "bootstrap" / "check-must-customize.sh"
     result = subprocess.run([str(script), str(scaffolded_project)], capture_output=True, text=True)

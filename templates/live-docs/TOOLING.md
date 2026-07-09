@@ -26,4 +26,4 @@ Don't rename or delete entries — mark `superseded` or `dropped` so the trail i
 
 ## Project-specific
 
-{{MUST_CUSTOMIZE — add T-NNN entries as your project picks visualisation libs, modelling tools, etc.}}
+{{FIRST_ENTRY — add T-NNN entries as your project picks visualisation libs, modelling tools, etc.}}

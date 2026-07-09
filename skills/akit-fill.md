@@ -37,19 +37,16 @@ This is the highest-stakes skill in the set: the content set here propagates int
 
 ## The walk-through
 
-5. For each file in the check-must-customize output, in this order (most important first):
+5. For each file in the check-must-customize output, in this order. The order is load-bearing: `project_overview.md` is the **single source** for project context, and two later markers are distillations of it.
 
-   1. `CLAUDE.md` — sets project goal and audience
-   2. `memory/project_overview.md` — same context, agent-facing
-   3. `memory/stakeholder_stance.md` — how the audience views the work
-   4. `live-docs/TRUST_MEMO.md` — example placeholders only; will be filled with real findings later
-   5. `live-docs/DATA_PROFILE.md` — populated by 02_profile.py; markers are usually placeholders for narrative
-   6. `live-docs/DECISIONS.md` — leave as-is for now; `/akit-finding` will surface DR-NNN decisions as they emerge
-   7. `live-docs/ANALYSIS_BACKLOG.md` — propose A-NNN entries from the brief
-   8. `live-docs/TOOLING.md` — fill in if the brief specifies tools
-   9. `live-docs/METHODOLOGY_LOG.md` — usually leave the placeholder; this fills in over time
-   10. `memory/data_quality_caveats.md` — leave for now; populates after profiling
-   11. `analysis/_decisions.py`, `analysis/schemas.py`, `analysis/02_profile.py`, `analysis/01_inspect_raw.py` — **SKIP in this pass.** These are stub functions; their content depends on the data and on DR-NNN decisions. They get filled in by `/akit-finding` and through normal analysis work.
+   1. `memory/project_overview.md` — THE source: goal, audience, deliverable, timeline, stakeholders, scope. Draft it fully from `reference/`; this is the highest-stakes accept of the walk-through.
+   2. `CLAUDE.md` — the goal paragraph: distill it from what was just accepted in `project_overview.md` (agent-facing, one paragraph). Cite the overview as the source.
+   3. `README.md` — the project description: another one-paragraph distillation of `project_overview.md` (public-facing).
+   4. `memory/stakeholder_stance.md` — how the audience views the work. Different source: a stakeholder conversation or the brief's framing notes, not the overview. If neither exists yet, offer skip.
+   5. `memory/data_quality_caveats.md` — seed caveats known *before* first data contact (stated collection quirks, known suppression rules). If none are known, offer skip; profiling will populate it.
+   6. `live-docs/DATA_PROFILE.md` — the raw-data inventory (file, shape, source, snapshot date); the narrative refines after `02_profile.py` runs.
+
+   That's the whole setup surface. `FIRST_ENTRY` stubs elsewhere (live-docs, `analysis/*.py`) are lifecycle placeholders — the first DR-NNN, A-NNN, or methodology entry lands there during analysis. They are not this skill's job and are invisible to the scanner.
 
 6. For each `MUST_CUSTOMIZE` block (double-brace marker with instruction text) in a file you're processing:
 
@@ -80,8 +77,8 @@ This is the highest-stakes skill in the set: the content set here propagates int
    ```
    ✓ MUST_CUSTOMIZE walk-through complete.
      X markers filled, Y skipped (in: <files>)
-     <N> markers in analysis/ stub files remain — those get filled by
-     /akit-finding as you register findings.
+     (FIRST_ENTRY stubs in live-docs and analysis/ fill themselves during
+     analysis — first decision, first finding, first log entry.)
 
    Next steps:
    - Inspect the data: python analysis/01_inspect_raw.py
@@ -92,5 +89,6 @@ This is the highest-stakes skill in the set: the content set here propagates int
 
 - **Never accept-all silently.** Each marker is a separate prompt. The friction is the value.
 - **Never fabricate content the reference materials don't support.** "Stakeholder is the leadership team" without a brief that says so is a hallucination, even if it sounds plausible.
-- **Never edit `analysis/` files in this pass.** Their content depends on the data and on DR-NNN decisions that haven't been made yet. `/akit-finding` handles them.
+- **Never edit `analysis/` files or `FIRST_ENTRY` stubs in this pass.** Their content depends on the data and on DR-NNN decisions that haven't been made yet. `/akit-finding` and normal analysis work handle them.
+- **Fill `memory/project_overview.md` before its distillations.** If the user asks to do CLAUDE.md or README first, explain the order: one source, two derivations — reversing it reintroduces the drift the order exists to prevent.
 - **If the user gets impatient and says "just fill them all in,"** push back: "I can do that, but the markers are designed to surface project-specific decisions. Skipping the review step usually means the project ships with shallow context that compounds in later analyses. Want me to do it anyway?"

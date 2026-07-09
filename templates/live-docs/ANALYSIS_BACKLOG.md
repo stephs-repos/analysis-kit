@@ -13,7 +13,7 @@ Don't rename or delete entries — mark `done`, `dropped`, or `superseded`.
 
 ## Backlog
 
-{{MUST_CUSTOMIZE — replace this stub with your project's first A-NNN once one emerges.}}
+{{FIRST_ENTRY — replace this stub with your project's first A-NNN once one emerges.}}
 
 ### A-001 (example — replace or delete)
 

@@ -4,7 +4,7 @@ description: What this analysis is for, who reads it, what success looks like
 type: project
 ---
 
-{{MUST_CUSTOMIZE — replace with project context.}}
+{{MUST_CUSTOMIZE — replace with project context. This file is the SINGLE SOURCE for project context: fill it first; the CLAUDE.md goal paragraph and the README description are one-paragraph distillations of what you write here.}}
 
 Suggested fields:
 

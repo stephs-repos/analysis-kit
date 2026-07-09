@@ -10,7 +10,7 @@ Filters should:
 - Be idempotent: applying twice gives the same result as once.
 - Document the rule in DECISIONS.md and reference back here.
 
-{{MUST_CUSTOMIZE}} — this file ships as a stub. Add your project's filter
+{{FIRST_ENTRY}} — this file ships as a stub. Add your project's filter
 functions below as DR-NNN decisions are agreed in DECISIONS.md.
 """
 from __future__ import annotations

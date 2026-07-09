@@ -4,7 +4,7 @@ What's reliable, what's noisy, what's unassessable. Cites `F-NNN` ids from `anal
 
 ## Reliable
 
-{{MUST_CUSTOMIZE — list claims you stand behind. Each item should cite ≥1 finding id.}}
+{{FIRST_ENTRY — list claims you stand behind. Each item should cite ≥1 finding id.}}
 
 Example (replace with real findings — use literal `F-NNN` in examples; real entries use digits):
 - Median session rating is 4.2 across 312 sessions [`F-NNN`].

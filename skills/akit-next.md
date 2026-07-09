@@ -42,7 +42,9 @@ guess from memory.
   ```
   (Prefers the project's own copy of the scanner; falls back to the kit clone —
   `__AKIT_ROOT__` is substituted at install time. Exit 1 + a file list = markers
-  remain; exit 0 = none.)
+  remain; exit 0 = none. `FIRST_ENTRY` stubs are lifecycle placeholders, not
+  setup markers — the scanner ignores them, so a filled project reads clean even
+  before its first DR-NNN or finding exists.)
 - **data** — does `reference/raw-data/` hold anything beyond `README.md` / `.gitkeep`?
 - **reference** — does `reference/` hold any context file besides its README
   (a brief, data dictionary, scope note)?

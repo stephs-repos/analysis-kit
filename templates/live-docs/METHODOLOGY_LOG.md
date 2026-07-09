@@ -32,7 +32,7 @@ Maintain a running tally at the bottom of this file. Defensible counts only.
 
 ## Entries
 
-{{MUST_CUSTOMIZE — add your first entry once a methodology moment occurs.}}
+{{FIRST_ENTRY — add your first entry once a methodology moment occurs.}}
 
 ---
 

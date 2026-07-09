@@ -14,7 +14,9 @@ set -e
 
 TARGET="${1:-.}"
 # Built by concatenation so this script never matches itself now that a
-# copy ships inside every scaffold (.claude/akit/).
+# copy ships inside every scaffold (.claude/akit/). Only the SETUP token is
+# checked: FIRST_ENTRY stubs (live-docs, analysis/*.py) are lifecycle
+# placeholders that resolve during analysis and deliberately do not count.
 MARKER='{{'MUST_CUSTOMIZE
 
 if [ ! -d "$TARGET" ]; then

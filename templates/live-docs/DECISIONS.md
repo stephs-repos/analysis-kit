@@ -14,7 +14,7 @@ Don't rename or delete entries — mark `superseded` or `dropped` instead so the
 
 ## Decisions
 
-{{MUST_CUSTOMIZE — replace this stub with your project's first DR-NNN.}}
+{{FIRST_ENTRY — replace this stub with your project's first DR-NNN.}}
 
 ### DR-001 (example — replace or delete)
 

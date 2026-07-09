@@ -12,7 +12,7 @@ Usage in your scripts:
     from analysis.schemas import RawSessions
     df = RawSessions.validate(pd.read_csv("reference/raw-data/sessions.csv"))
 
-{{MUST_CUSTOMIZE}} — replace the example below with your project's schemas.
+{{FIRST_ENTRY}} — replace the example below with your project's schemas.
 """
 from __future__ import annotations
 
