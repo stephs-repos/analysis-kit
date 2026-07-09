@@ -74,6 +74,15 @@ esac
 KIT_REPO_URL="${KIT_REPO_URL%.git}"
 [ -z "$KIT_REPO_URL" ] && KIT_REPO_URL="https://github.com/$GITHUB_USER/analysis-kit"
 
+# Scaffold provenance: record exactly which kit commit produced this project.
+# framework_version alone can't answer "are these templates stale?" — the
+# version string outlives many template changes. "-dirty" flags uncommitted
+# template edits; "unknown" means a tarball install with no git metadata.
+KIT_COMMIT="$(git -C "$KIT_ROOT" rev-parse --short=12 HEAD 2>/dev/null || echo unknown)"
+if [ "$KIT_COMMIT" != "unknown" ] && [ -n "$(git -C "$KIT_ROOT" status --porcelain 2>/dev/null)" ]; then
+  KIT_COMMIT="$KIT_COMMIT-dirty"
+fi
+
 # Clean up a half-scaffolded target if anything below fails — but only if WE
 # created it (never delete a directory the user already had).
 TARGET_PREEXISTED=0
@@ -134,6 +143,7 @@ AKIT_PROJECT_NAME="$PROJECT_NAME" \
 AKIT_GITHUB_USER="$GITHUB_USER" \
 AKIT_KIT_REPO_URL="$KIT_REPO_URL" \
 AKIT_KIT_ROOT="$KIT_ROOT" \
+AKIT_KIT_COMMIT="$KIT_COMMIT" \
 AKIT_FRAMEWORK_VERSION="$FRAMEWORK_VERSION" \
 AKIT_CREATED_AT="$CREATED_AT" \
 AKIT_TIER="$TIER" \
@@ -151,6 +161,7 @@ subs = {
     # scaffolding machine that path is known, so bake it in. On other machines
     # the project-local scanner copy is found first, so a stale path is inert.
     "__AKIT_ROOT__": os.environ["AKIT_KIT_ROOT"],
+    "{{KIT_COMMIT}}": os.environ["AKIT_KIT_COMMIT"],
     "{{FRAMEWORK_VERSION}}": os.environ["AKIT_FRAMEWORK_VERSION"],
     "{{CREATED_AT}}": os.environ["AKIT_CREATED_AT"],
     "{{TIER}}": os.environ["AKIT_TIER"],
@@ -186,10 +197,10 @@ if [ ! -d "$TARGET/.git" ]; then
     # (CI, fresh containers) with no global git config. Use --author's name when
     # provided so the commit isn't attributed to a generic identity.
     if git config user.email >/dev/null 2>&1; then
-      git commit -q -m "scaffold from analysis-kit v$FRAMEWORK_VERSION ($TIER tier)"
+      git commit -q -m "scaffold from analysis-kit v$FRAMEWORK_VERSION @ $KIT_COMMIT ($TIER tier)"
     else
       git -c user.name="${AUTHOR:-analysis-kit}" -c user.email="analysis-kit@localhost" \
-        commit -q -m "scaffold from analysis-kit v$FRAMEWORK_VERSION ($TIER tier)"
+        commit -q -m "scaffold from analysis-kit v$FRAMEWORK_VERSION @ $KIT_COMMIT ($TIER tier)"
     fi
   )
 fi

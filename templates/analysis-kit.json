@@ -3,6 +3,8 @@
   "tier": "{{TIER}}",
   "project_name": "{{PROJECT_NAME}}",
   "created_at": "{{CREATED_AT}}",
+  "kit_commit": "{{KIT_COMMIT}}",
+  "kit_url": "{{KIT_REPO_URL}}",
   "model_version": null,
-  "_comment": "framework_version pins the validate.py / findings.json schema. tier is 'minimum' or 'full'. model_version should be set by the agent on first run (e.g., 'claude-opus-4-7') and updated when the model changes."
+  "_comment": "framework_version pins the validate.py / findings.json schema. kit_commit + kit_url record exactly which templates produced this scaffold (a -dirty suffix means the kit clone had uncommitted changes). tier is 'minimum' or 'full'. model_version should be set by the agent on first run (e.g., 'claude-opus-4-7') and updated when the model changes."
 }
