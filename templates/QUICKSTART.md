@@ -60,5 +60,6 @@ cleanup rule → tell Claude; unsure → `/akit-next`.
 3. Don't aggregate a column before applying its relevant `DR-NNN` filter.
 4. Don't bypass the validator — a red `validate.py` means stop, not ship.
 
-More depth: `CLAUDE.md` (this project's discipline), and in analysis-kit
-`docs/USER_GUIDE.md` and `docs/CONCEPTS.md`.
+Need a specific command later? [`CHEAT_SHEET.md`](CHEAT_SHEET.md) is the
+task → command lookup. More depth: `CLAUDE.md` (this project's discipline),
+and in analysis-kit `docs/USER_GUIDE.md` and `docs/CONCEPTS.md`.

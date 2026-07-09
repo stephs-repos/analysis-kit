@@ -4,7 +4,7 @@
 
 Scaffolded from [analysis-kit]({{KIT_REPO_URL}}) v{{FRAMEWORK_VERSION}}.
 
-> **New here?** Two things: add your files (raw data → `reference/raw-data/`, project context → `reference/`), then open Claude Code and type `/akit-next` — it guides you through everything else, one step at a time. [`QUICKSTART.md`](QUICKSTART.md) is the two-minute version of what to expect.
+> **New here?** Two things: add your files (raw data → `reference/raw-data/`, project context → `reference/`), then open Claude Code and type `/akit-next` — it guides you through everything else, one step at a time. [`QUICKSTART.md`](QUICKSTART.md) is the two-minute version of what to expect; [`CHEAT_SHEET.md`](CHEAT_SHEET.md) is the task → command lookup for later.
 
 ## First: fill in the template
 
