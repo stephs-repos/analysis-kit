@@ -233,6 +233,31 @@ def test_quickstart_ships_in_every_project(tmp_path: Path) -> None:
         assert "QUICKSTART.md" in (p / "README.md").read_text(), f"{tier}: README must link QUICKSTART"
 
 
+def test_kit_repo_url_substituted(tmp_path: Path) -> None:
+    """The 'scaffolded from' links must carry the kit clone's real origin URL,
+    not a guess built from --github-user — that guess produced dead links
+    whenever the kit lived under a different account than the project author."""
+    kit_root = Path(__file__).resolve().parent.parent
+    origin = subprocess.run(
+        ["git", "-C", str(kit_root), "remote", "get-url", "origin"],
+        capture_output=True, text=True,
+    ).stdout.strip()
+    p = _scaffold(tmp_path, "--minimum")
+    for doc in ("README.md", "CLAUDE.md"):
+        txt = (p / doc).read_text()
+        assert "{{KIT_REPO_URL}}" not in txt, f"{doc}: token not substituted"
+        if origin:
+            expected = origin.removesuffix(".git")
+            if expected.startswith("git@"):
+                expected = "https://" + expected.removeprefix("git@").replace(":", "/", 1)
+            elif expected.startswith("ssh://git@"):
+                expected = "https://" + expected.removeprefix("ssh://git@")
+            assert expected in txt, f"{doc}: expected kit link {expected}"
+        else:
+            # No remote (tarball install) — falls back to the github-user guess.
+            assert "https://github.com/tester/analysis-kit" in txt, doc
+
+
 def test_akit_next_skill_installed(tmp_path: Path) -> None:
     """install-skills.sh must install the /akit-next conductor with its kit-root
     token substituted (it shells out to bootstrap/check-must-customize.sh)."""

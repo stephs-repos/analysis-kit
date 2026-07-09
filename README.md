@@ -6,36 +6,31 @@ The framework's job is **claim integrity**: every quantitative assertion you mak
 
 This is **scaffolding**, not a runtime library. Once a project is created, it has no runtime dependency on analysis-kit — upgrades are deliberate, opt-in copies of the templates.
 
-## Documentation
+## New user? The path is three steps
 
-- 🗺️ **[CONCEPTS.md](docs/CONCEPTS.md)** — start here. The mental-model map: the main features in plain language and how they relate, with diagrams.
-- 📖 **[USER_GUIDE.md](docs/USER_GUIDE.md)** — the detailed hands-on tour: how validation works, every template explained, common workflows, troubleshooting, when not to use.
-- [PHILOSOPHY.md](docs/PHILOSOPHY.md) — principles
-- [PROVENANCE_CONTRACT.md](docs/PROVENANCE_CONTRACT.md) — `findings.json` schema reference
-- [COUNTERFACTUAL_TAGGING.md](docs/COUNTERFACTUAL_TAGGING.md) — `OBSERVED` / `PLAUSIBLE` / `WEAK` rules
-- [HOOKS_GUIDE.md](docs/HOOKS_GUIDE.md) — hook contracts and failure modes
-
-## Quick start
+Onboarding is deliberately split at the scaffold boundary: this repo gets you **to** a project; everything after that lives **inside** the project you create.
 
 ```bash
-# Clone analysis-kit somewhere
-git clone <your-fork-url> ~/dev/analysis-kit
+# 1. Install: clone the kit and its skills (once per machine)
+git clone <this-repo-url> ~/dev/analysis-kit
+~/dev/analysis-kit/bootstrap/install-skills.sh   # /akit-* skills for Claude Code
 
-# Create a new analysis project
+# 2. Scaffold a project
 ~/dev/analysis-kit/bootstrap/new-project.sh ./my-analysis --minimum
+#    (or, in Claude Code: /akit-start my-analysis)
 
-cd my-analysis
-pip install -r requirements.txt
-claude            # opens Claude Code; reads CLAUDE.md → follows the discipline
+# 3. Onboard inside the project
+cd my-analysis && claude
 ```
 
-### Claude Code skills (optional, recommended)
+From step 3 the kit's docs hand over to two things every scaffold ships with:
 
-Install the workflow skills globally so Claude Code can guide users through the analysis-kit lifecycle:
+- **`QUICKSTART.md`** (in your new project) — the map: empty scaffold → first verified, committed finding, ~20 minutes.
+- **`/akit-next`** — the GPS: detects where the project is and tells you the single next action. Run it anytime, especially when lost or returning after a break.
 
-```bash
-~/dev/analysis-kit/bootstrap/install-skills.sh
-```
+Details and troubleshooting for step 1–2: [`bootstrap/INSTALL.md`](bootstrap/INSTALL.md).
+
+### The skills
 
 | Skill | Role |
 |---|---|
@@ -45,7 +40,22 @@ Install the workflow skills globally so Claude Code can guide users through the 
 | `/akit-finding "<hypothesis>"` | Register one finding — the workhorse, used continuously. |
 | `/akit-next` | **Resumable conductor** — detects where the project is and routes you to the single next action. Run it anytime you're unsure what's next. |
 
-Then in any new project: `/akit-start <name>` → drop reference materials → `/akit-fill` → `/akit-finding "<hypothesis>"` for each claim — or just run `/akit-next` and let it route you. Every scaffolded project also ships a step-by-step [`QUICKSTART.md`](templates/QUICKSTART.md). See [`skills/`](skills/) for the source markdown.
+See [`skills/`](skills/) for the source markdown.
+
+## Documentation
+
+To understand the system (read in this order):
+
+- 🗺️ **[CONCEPTS.md](docs/CONCEPTS.md)** — the mental-model map: the main features in plain language and how they relate, with diagrams.
+- 📖 **[USER_GUIDE.md](docs/USER_GUIDE.md)** — the detailed hands-on tour: how validation works, every template explained, common workflows, troubleshooting, when not to use.
+- [PHILOSOPHY.md](docs/PHILOSOPHY.md) — principles
+
+Reference (look up as needed):
+
+- [PROVENANCE_CONTRACT.md](docs/PROVENANCE_CONTRACT.md) — `findings.json` schema reference
+- [COUNTERFACTUAL_TAGGING.md](docs/COUNTERFACTUAL_TAGGING.md) — `OBSERVED` / `PLAUSIBLE` / `WEAK` rules
+- [HOOKS_GUIDE.md](docs/HOOKS_GUIDE.md) — hook contracts and failure modes
+- [REBUILD_PIPELINE.md](docs/REBUILD_PIPELINE.md) — Makefile targets and the CI trust gate
 
 ### VS Code dev container (recommended for working on analysis-kit itself)
 

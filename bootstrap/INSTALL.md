@@ -15,6 +15,14 @@
 git clone https://github.com/<your-user>/analysis-kit ~/dev/analysis-kit
 ```
 
+## Install the Claude Code skills (recommended)
+
+```bash
+~/dev/analysis-kit/bootstrap/install-skills.sh
+```
+
+Installs the `/akit-*` workflow skills into `~/.claude/skills/` (idempotent; re-run after updating the kit). These give Claude Code the guided workflow — `/akit-start`, `/akit-fill`, `/akit-finding`, and the `/akit-next` conductor.
+
 ## Verify
 
 Two paths — pick one.
@@ -57,6 +65,10 @@ cd ~/work/my-analysis
 ```
 
 This lists remaining `{{MUST_CUSTOMIZE}}` markers — places the templates expect project-specific content.
+
+## Onboard — continues inside the project
+
+Installation ends here; onboarding doesn't. Every scaffolded project ships a `QUICKSTART.md` — the step-by-step recipe from empty scaffold to your first verified, committed finding. Open the project in Claude Code and follow it, or just type `/akit-next` and let it route you.
 
 ## Upgrade an existing project
 

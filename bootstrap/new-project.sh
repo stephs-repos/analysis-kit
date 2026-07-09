@@ -62,6 +62,18 @@ FRAMEWORK_VERSION="$(grep -o '"framework_version"[[:space:]]*:[[:space:]]*"[^"]*
 [ -z "$FRAMEWORK_VERSION" ] && FRAMEWORK_VERSION="unknown"
 CREATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
+# Canonical kit URL for the "scaffolded from" links in generated docs. Prefer
+# this clone's own origin remote (normalized to https, .git stripped) — guessing
+# from --github-user produces a dead link whenever the kit lives under a
+# different account than the project author.
+KIT_REPO_URL="$(git -C "$KIT_ROOT" remote get-url origin 2>/dev/null || true)"
+case "$KIT_REPO_URL" in
+  git@*) KIT_REPO_URL="https://$(printf '%s' "$KIT_REPO_URL" | sed -e 's/^git@//' -e 's/:/\//')" ;;
+  ssh://git@*) KIT_REPO_URL="https://${KIT_REPO_URL#ssh://git@}" ;;
+esac
+KIT_REPO_URL="${KIT_REPO_URL%.git}"
+[ -z "$KIT_REPO_URL" ] && KIT_REPO_URL="https://github.com/$GITHUB_USER/analysis-kit"
+
 # Clean up a half-scaffolded target if anything below fails — but only if WE
 # created it (never delete a directory the user already had).
 TARGET_PREEXISTED=0
@@ -103,6 +115,7 @@ fi
 AKIT_TARGET="$TARGET" \
 AKIT_PROJECT_NAME="$PROJECT_NAME" \
 AKIT_GITHUB_USER="$GITHUB_USER" \
+AKIT_KIT_REPO_URL="$KIT_REPO_URL" \
 AKIT_FRAMEWORK_VERSION="$FRAMEWORK_VERSION" \
 AKIT_CREATED_AT="$CREATED_AT" \
 AKIT_TIER="$TIER" \
@@ -115,6 +128,7 @@ target = pathlib.Path(os.environ["AKIT_TARGET"])
 subs = {
     "{{PROJECT_NAME}}": os.environ["AKIT_PROJECT_NAME"],
     "{{GITHUB_USER}}": os.environ["AKIT_GITHUB_USER"],
+    "{{KIT_REPO_URL}}": os.environ["AKIT_KIT_REPO_URL"],
     "{{FRAMEWORK_VERSION}}": os.environ["AKIT_FRAMEWORK_VERSION"],
     "{{CREATED_AT}}": os.environ["AKIT_CREATED_AT"],
     "{{TIER}}": os.environ["AKIT_TIER"],

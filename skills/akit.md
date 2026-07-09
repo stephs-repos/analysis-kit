@@ -50,9 +50,9 @@ Tell them:
 2. Drop raw data into `reference/raw-data/` and project context (brief, dictionary, prior art) into `reference/` directly.
 3. Run `/akit-fill` to populate `MUST_CUSTOMIZE` markers from the reference materials.
 4. Inspect the data with `python analysis/01_inspect_raw.py`.
-
-…or, at any point, just run `/akit-next` — it detects where the project is and tells the user the single next action. It's the lowest-friction entry point for someone who doesn't want to memorise the sequence.
 5. As claims emerge, run `/akit-finding "<one-line hypothesis>"` for each one.
+
+…or, at any point, just run `/akit-next` — it detects where the project is and tells the user the single next action. It's the lowest-friction entry point for someone who doesn't want to memorise the sequence. The same recipe in document form is `QUICKSTART.md`, shipped in every scaffolded project — point the user there for the written walkthrough.
 
 ## Project detection
 
