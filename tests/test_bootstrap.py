@@ -66,10 +66,12 @@ def test_install_skills_substitutes_kit_root(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stdout + result.stderr
     skills = tmp_path / ".claude" / "skills"
     assert skills.exists()
-    # Substitution: at least one skill (akit-start) references AKIT_ROOT
-    start_md = (skills / "akit-start.md").read_text()
+    # Claude Code only discovers <name>/SKILL.md directories — flat .md files
+    # in skills/ are silently ignored ("unknown command").
+    start_md = (skills / "akit-start" / "SKILL.md").read_text()
     assert "__AKIT_ROOT__" not in start_md, "token should have been substituted"
     assert str(kit_root) in start_md, "kit absolute path should be in installed skill"
+    assert not list(skills.glob("*.md")), "no flat .md files — they are not discovered"
 
 
 def test_reference_directory_has_convention_readme(scaffolded_project: Path) -> None:
@@ -283,11 +285,33 @@ def test_akit_next_skill_installed(tmp_path: Path) -> None:
     env["HOME"] = str(tmp_path)
     result = subprocess.run([str(script)], env=env, capture_output=True, text=True)
     assert result.returncode == 0, result.stdout + result.stderr
-    installed = tmp_path / ".claude" / "skills" / "akit-next.md"
-    assert installed.exists(), "akit-next.md not installed (missing from SKILL_NAMES?)"
+    installed = tmp_path / ".claude" / "skills" / "akit-next" / "SKILL.md"
+    assert installed.exists(), "akit-next SKILL.md not installed (missing from SKILL_NAMES?)"
     txt = installed.read_text()
     assert "__AKIT_ROOT__" not in txt, "kit-root token should have been substituted"
     assert str(kit_root) in txt
+
+
+def test_scaffold_embeds_project_skills(tmp_path: Path) -> None:
+    """Scaffolds embed the in-project skills (.claude/skills/<name>/SKILL.md —
+    auto-discovered by Claude Code) plus the marker-scanner, so /akit-next works
+    for anyone who clones the project with no per-machine install."""
+    import os
+    import stat
+    p = _scaffold(tmp_path, "--minimum")
+    for skill in ("akit", "akit-fill", "akit-finding", "akit-next"):
+        sk = p / ".claude" / "skills" / skill / "SKILL.md"
+        assert sk.exists(), f"embedded skill missing: {skill}"
+        assert "__AKIT_ROOT__" not in sk.read_text(), f"{skill}: kit-root token unsubstituted"
+    assert not (p / ".claude" / "skills" / "akit-start").exists(), \
+        "akit-start needs the kit clone — must not be embedded"
+    scanner = p / ".claude" / "akit" / "check-must-customize.sh"
+    assert scanner.exists() and os.stat(scanner).st_mode & stat.S_IXUSR, "scanner missing or not executable"
+    # Self-match regression: the embedded scanner and skills must never be
+    # reported as unfilled markers (the scanner's own MARKER= line, and skill
+    # prose about markers, used to trip this).
+    result = subprocess.run(["bash", str(scanner), str(p)], capture_output=True, text=True)
+    assert ".claude/" not in result.stdout, f"scanner flagged kit-managed files:\n{result.stdout}"
 
 
 def test_akit_index_references_next(tmp_path: Path) -> None:

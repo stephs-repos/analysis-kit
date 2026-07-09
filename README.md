@@ -25,6 +25,8 @@ cd my-analysis && claude
 
 From step 3 the interface is deliberately small: **add your files** (raw data → `reference/raw-data/`, project context → `reference/`), then **type `/akit-next`** — it detects where the project is, offers the single next step, and stops at every decision that's yours. Keep typing it until you're done. Every scaffold ships a `QUICKSTART.md` saying exactly this, with a two-minute preview of the phases it will walk you through.
 
+The in-project skills (`/akit`, `/akit-fill`, `/akit-finding`, `/akit-next`) are **embedded in the scaffold** at `.claude/skills/`, so they work for anyone who clones the project with no setup. The global install in step 1 is what provides `/akit-start` — the one skill you need *before* a project exists.
+
 Details and troubleshooting for step 1–2: [`bootstrap/INSTALL.md`](bootstrap/INSTALL.md).
 
 ### The skills

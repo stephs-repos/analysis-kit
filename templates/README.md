@@ -13,7 +13,7 @@ This scaffold ships with `MUST_CUSTOMIZE` markers — double-brace placeholders 
 ```bash
 # List files that still have unfilled markers (no analysis-kit clone needed).
 # The \{\{ matches the literal double-brace that opens every marker:
-grep -rlE '\{\{MUST_CUSTOMIZE' .
+grep -rlE '\{\{MUST_CUSTOMIZE' . --exclude-dir=.claude
 ```
 
 Then fill them in:

@@ -33,8 +33,11 @@ decision that's yours to make. Type it again whenever a step completes, when
 you're unsure, or when you come back after a break. It never loses your place,
 because it recomputes it from the project each time.
 
-*(If Claude doesn't recognize `/akit-next`, the skills aren't installed on this
-machine — one-time fix: `bash <analysis-kit>/bootstrap/install-skills.sh`.)*
+*(The workflow skills ship inside this project at `.claude/skills/`, so
+`/akit-next` works for anyone who clones it — no install. If it isn't
+recognized, check you opened Claude Code at the project root; for an older
+scaffold without embedded skills, install them globally once:
+`bash <analysis-kit>/bootstrap/install-skills.sh`.)*
 
 ## What it will walk you through
 

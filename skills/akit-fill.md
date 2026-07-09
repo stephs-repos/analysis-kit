@@ -5,7 +5,7 @@ description: Walk through MUST_CUSTOMIZE markers in an analysis-kit project. Dra
 
 # /akit-fill
 
-Walk through every `{{MUST_CUSTOMIZE — instructions...}}` marker in the project, drafting content grounded in the reference materials, and prompting the user to accept/edit/skip on each one.
+Walk through every `MUST_CUSTOMIZE` marker (a double-brace placeholder carrying inline instructions) in the project, drafting content grounded in the reference materials, and prompting the user to accept/edit/skip on each one.
 
 This is the highest-stakes skill in the set: the content set here propagates into every downstream decision. Follow the procedure exactly. Do not skip steps. Do not batch-accept.
 
@@ -14,11 +14,12 @@ This is the highest-stakes skill in the set: the content set here propagates int
 1. Confirm the cwd is an analysis-kit project: `analysis-kit.json` must exist. If not, stop and tell the user:
    "this doesn't look like an analysis-kit project. Run `/akit-start <name>` first, or `cd` to a project root."
 
-2. The marker-scanner lives in the analysis-kit clone, not in the scaffolded project. Resolve its path and run it against the current project:
+2. Resolve the marker-scanner and run it against the current project — prefer the copy shipped inside the scaffold, fall back to the analysis-kit clone:
 
    ```bash
-   AKIT_ROOT=__AKIT_ROOT__
-   bash "$AKIT_ROOT/bootstrap/check-must-customize.sh" .
+   SCAN=".claude/akit/check-must-customize.sh"
+   [ -f "$SCAN" ] || SCAN="__AKIT_ROOT__/bootstrap/check-must-customize.sh"
+   bash "$SCAN" .
    ```
 
    (`__AKIT_ROOT__` is substituted with the absolute path to the kit when the skill is installed.) Capture the file list.
@@ -50,7 +51,7 @@ This is the highest-stakes skill in the set: the content set here propagates int
    10. `memory/data_quality_caveats.md` — leave for now; populates after profiling
    11. `analysis/_decisions.py`, `analysis/schemas.py`, `analysis/02_profile.py`, `analysis/01_inspect_raw.py` — **SKIP in this pass.** These are stub functions; their content depends on the data and on DR-NNN decisions. They get filled in by `/akit-finding` and through normal analysis work.
 
-6. For each `{{MUST_CUSTOMIZE — instruction text}}` block in a file you're processing:
+6. For each `MUST_CUSTOMIZE` block (double-brace marker with instruction text) in a file you're processing:
 
    a. Show the user:
       - File and approximate line number
@@ -62,11 +63,11 @@ This is the highest-stakes skill in the set: the content set here propagates int
 
    d. Ask: "Accept (a), edit (e), or skip (s)?"
 
-   e. On `a`: replace the entire `{{MUST_CUSTOMIZE — ...}}` marker with the drafted text using the Edit tool.
+   e. On `a`: replace the entire marker — double-braces included — with the drafted text using the Edit tool.
       On `e`: take the user's text verbatim, replace the marker with it.
       On `s`: leave the marker untouched. Note the file/location in a "skipped" list.
 
-7. After processing all files (skipping the `analysis/` ones per step 5), re-run `bash "$AKIT_ROOT/bootstrap/check-must-customize.sh" .` and report:
+7. After processing all files (skipping the `analysis/` ones per step 5), re-run the scanner from step 2 (`bash "$SCAN" .`) and report:
 
    - X markers filled
    - Y skipped (list locations so the user can return to them)

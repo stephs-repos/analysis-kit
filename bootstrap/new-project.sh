@@ -105,6 +105,23 @@ if [ "$TIER" = "minimum" ]; then
   sed -i '/^# --- vignette rendering/,$d' "$TARGET/requirements.txt"
 fi
 
+# ── embed workflow skills ──────────────────────────────────────────────────
+# Project-level skills (.claude/skills/<name>/SKILL.md) are auto-discovered by
+# Claude Code, so /akit-next, /akit-fill, and /akit-finding work for anyone who
+# clones the project — no per-machine install. akit-start is excluded: it
+# scaffolds NEW projects and genuinely needs the kit clone. The marker-scanner
+# ships too, so the embedded skills don't depend on the kit's install path.
+mkdir -p "$TARGET/.claude/akit"
+cp "$KIT_ROOT/bootstrap/check-must-customize.sh" "$TARGET/.claude/akit/"
+for skill in akit akit-fill akit-finding akit-next; do
+  if [ -f "$KIT_ROOT/skills/$skill.md" ]; then
+    mkdir -p "$TARGET/.claude/skills/$skill"
+    cp "$KIT_ROOT/skills/$skill.md" "$TARGET/.claude/skills/$skill/SKILL.md"
+  else
+    echo "warn: skills/$skill.md missing from kit — not embedded" >&2
+  fi
+done
+
 # ── token substitution ─────────────────────────────────────────────────────
 # Replace ALL substitutable tokens. {{MUST_CUSTOMIZE}} stays — it marks intent.
 #
@@ -116,6 +133,7 @@ AKIT_TARGET="$TARGET" \
 AKIT_PROJECT_NAME="$PROJECT_NAME" \
 AKIT_GITHUB_USER="$GITHUB_USER" \
 AKIT_KIT_REPO_URL="$KIT_REPO_URL" \
+AKIT_KIT_ROOT="$KIT_ROOT" \
 AKIT_FRAMEWORK_VERSION="$FRAMEWORK_VERSION" \
 AKIT_CREATED_AT="$CREATED_AT" \
 AKIT_TIER="$TIER" \
@@ -129,6 +147,10 @@ subs = {
     "{{PROJECT_NAME}}": os.environ["AKIT_PROJECT_NAME"],
     "{{GITHUB_USER}}": os.environ["AKIT_GITHUB_USER"],
     "{{KIT_REPO_URL}}": os.environ["AKIT_KIT_REPO_URL"],
+    # Embedded skills fall back to the kit clone for the marker-scanner; on the
+    # scaffolding machine that path is known, so bake it in. On other machines
+    # the project-local scanner copy is found first, so a stale path is inert.
+    "__AKIT_ROOT__": os.environ["AKIT_KIT_ROOT"],
     "{{FRAMEWORK_VERSION}}": os.environ["AKIT_FRAMEWORK_VERSION"],
     "{{CREATED_AT}}": os.environ["AKIT_CREATED_AT"],
     "{{TIER}}": os.environ["AKIT_TIER"],
@@ -153,7 +175,7 @@ PY
 
 # ── permissions ────────────────────────────────────────────────────────────
 
-chmod +x "$TARGET/.claude/hooks/"*.sh
+chmod +x "$TARGET/.claude/hooks/"*.sh "$TARGET/.claude/akit/check-must-customize.sh"
 
 # ── git init ───────────────────────────────────────────────────────────────
 

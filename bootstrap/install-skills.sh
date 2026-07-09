@@ -30,7 +30,10 @@ BACKED_UP=0
 
 for skill in "${SKILL_NAMES[@]}"; do
   src="$SKILLS_SRC/$skill.md"
-  dst="$TARGET/$skill.md"
+  # Claude Code discovers skills as DIRECTORIES: ~/.claude/skills/<name>/SKILL.md.
+  # A flat <name>.md in skills/ is silently ignored ("unknown command").
+  dst_dir="$TARGET/$skill"
+  dst="$dst_dir/SKILL.md"
 
   if [ ! -f "$src" ]; then
     echo "warn: $src not found in this analysis-kit clone — skipping" >&2
@@ -39,9 +42,18 @@ for skill in "${SKILL_NAMES[@]}"; do
 
   if [ -f "$dst" ]; then
     mkdir -p "$BACKUP_DIR"
-    cp "$dst" "$BACKUP_DIR/$skill.md"
+    cp "$dst" "$BACKUP_DIR/$skill.SKILL.md"
     BACKED_UP=$((BACKED_UP + 1))
   fi
+
+  # Migrate away a flat file from a pre-fix install — it was never discovered.
+  if [ -f "$TARGET/$skill.md" ]; then
+    mkdir -p "$BACKUP_DIR"
+    mv "$TARGET/$skill.md" "$BACKUP_DIR/$skill.md"
+    BACKED_UP=$((BACKED_UP + 1))
+  fi
+
+  mkdir -p "$dst_dir"
 
   # Substitute __AKIT_ROOT__ with the absolute path to this clone.
   python3 -c "

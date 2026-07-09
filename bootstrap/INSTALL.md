@@ -23,6 +23,8 @@ git clone https://github.com/<your-user>/analysis-kit ~/dev/analysis-kit
 
 Installs the `/akit-*` workflow skills into `~/.claude/skills/` (idempotent; re-run after updating the kit). These give Claude Code the guided workflow — `/akit-start`, `/akit-fill`, `/akit-finding`, and the `/akit-next` conductor.
 
+Note: scaffolded projects **embed** the in-project skills (`/akit`, `/akit-fill`, `/akit-finding`, `/akit-next`) in their own `.claude/skills/`, so collaborators cloning a project skip this step entirely. The global install mainly provides `/akit-start`, which you need before a project exists.
+
 ## Verify
 
 Two paths — pick one.

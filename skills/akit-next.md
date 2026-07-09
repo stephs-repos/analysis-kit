@@ -35,11 +35,14 @@ guess from memory.
 
 - **markers** — unfilled scaffold placeholders:
   ```bash
-  AKIT_ROOT=__AKIT_ROOT__
-  bash "$AKIT_ROOT/bootstrap/check-must-customize.sh" .
+  ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
+  SCAN="$ROOT/.claude/akit/check-must-customize.sh"      # ships in the scaffold
+  [ -f "$SCAN" ] || SCAN="__AKIT_ROOT__/bootstrap/check-must-customize.sh"
+  bash "$SCAN" "$ROOT"
   ```
-  (`__AKIT_ROOT__` is substituted with the kit path at install time. Exit 1 + a
-  file list = markers remain; exit 0 = none.)
+  (Prefers the project's own copy of the scanner; falls back to the kit clone —
+  `__AKIT_ROOT__` is substituted at install time. Exit 1 + a file list = markers
+  remain; exit 0 = none.)
 - **data** — does `reference/raw-data/` hold anything beyond `README.md` / `.gitkeep`?
 - **reference** — does `reference/` hold any context file besides its README
   (a brief, data dictionary, scope note)?

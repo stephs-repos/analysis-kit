@@ -54,9 +54,9 @@ Hooks that run these for you:
 
 | You want to… | Do this |
 |---|---|
-| List unfilled placeholders | `grep -rlE '\{\{MUST_CUSTOMIZE' .` |
+| List unfilled placeholders | `grep -rlE '\{\{MUST_CUSTOMIZE' . --exclude-dir=.claude` |
 | Fill them | `/akit-fill` — drafts each from `reference/`; you accept/edit/skip |
-| Install the `/akit-*` skills | `bash <analysis-kit>/bootstrap/install-skills.sh` (once per machine) |
+| Install the `/akit-*` skills | already embedded in this project (`.claude/skills/`); the global install — `bash <analysis-kit>/bootstrap/install-skills.sh` — mainly adds `/akit-start` |
 | Start another project | `/akit-start <name>` |
 
 ## Where things live
