@@ -137,7 +137,7 @@ That's it. You now have a project that:
 - Has a `memory/` directory of preconditions for the agent
 - Is a fresh git repo with one initial commit
 
-**Next steps — continue inside the project.** Your scaffold ships its own `QUICKSTART.md`: the step-by-step recipe from here to your first verified, committed finding (drop in data and context, `/akit-fill` the markers, `/akit-finding` each claim, `validate.py`, commit). Follow that — or just open Claude Code and type `/akit-next`, which detects where the project is and tells you the single next step. The rest of this guide is the depth behind those steps, not a substitute for them.
+**Next steps — continue inside the project.** From here the interface is two things: add your files (raw data → `reference/raw-data/`, project context → `reference/`), then open Claude Code and type `/akit-next` — it detects where the project is and walks you through the rest one approved step at a time (filling markers, inspecting data, registering findings, validating, committing). Your scaffold's `QUICKSTART.md` is the two-minute version of what to expect. The rest of this guide is the depth behind those steps, not a substitute for them.
 
 ## Tour of a scaffolded project
 
