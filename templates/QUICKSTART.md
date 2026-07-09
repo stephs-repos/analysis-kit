@@ -43,8 +43,10 @@ scaffold without embedded skills, install them globally once:
 
 These phases, one step at a time — you approve each; nothing is decided for you:
 
-1. **Fill the scaffold** — `/akit-fill` drafts every `MUST_CUSTOMIZE`
-   placeholder from your reference materials; you accept/edit/skip each one.
+1. **Fill the scaffold** — `/akit-fill` drafts the six `MUST_CUSTOMIZE`
+   placeholders from your reference materials (`memory/project_overview.md`
+   first — it's the source the others distill from); you accept/edit/skip
+   each one.
 2. **Inspect the data** — read shape, dtypes, and nulls together; quirks that
    need cleanup become named `DR-NNN` decision rules you approve.
 3. **Register findings** — for each claim, `/akit-finding "<one-line

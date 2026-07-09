@@ -4,7 +4,7 @@ description: Preconditions to apply before aggregation. Read this before computi
 type: project
 ---
 
-{{MUST_CUSTOMIZE — populate as caveats are discovered. Each entry should follow this shape:}}
+{{MUST_CUSTOMIZE — seed with caveats known BEFORE first data contact (stated collection quirks, suppression rules, known sentinels); skip if none are known yet. Profiling extends this file as more surface. Each entry should follow this shape:}}
 
 ### Caveat name (e.g., zero-sentinel in `column_X`)
 
