@@ -748,3 +748,71 @@ def test_sync_warns_not_fails_in_fast_mode(scaffolded_project: Path) -> None:
     result = run_validate(scaffolded_project, "--fast")   # Stop-hook mode = nudge
     assert result.returncode == 0, result.stdout + result.stderr
     assert "WARN  decisions_caveats:sync" in result.stdout
+
+
+# ── aggregate freshness (materialised intermediates) ─────────────────────────
+
+def _build_agg_with_manifest(project: Path, *, source: str = "reference/raw-data/big.csv",
+                             dr_set: tuple[str, ...] = ("DR-001",)) -> Path:
+    """Write a tiny derived table + its raw source, then a manifest via the
+    project's own _provenance.write_manifest (exercises writer + reader together)."""
+    out = project / "analysis" / "output" / "agg.csv"
+    out.write_text("date,n\n2024-01-01,5\n")
+    src = project / source
+    src.parent.mkdir(parents=True, exist_ok=True)
+    src.write_text("raw,data\n1,2\n")
+    r = subprocess.run(
+        ["python", "-c",
+         "from analysis._provenance import write_manifest; "
+         f"write_manifest(output='analysis/output/agg.csv', sources=['{source}'], dr_set={list(dr_set)})"],
+        cwd=project, capture_output=True, text=True,
+    )
+    assert r.returncode == 0, r.stdout + r.stderr
+    return src
+
+
+def test_freshness_noop_without_manifest(scaffolded_project: Path) -> None:
+    # Fresh scaffold has no manifest → check is silent, not a spurious pass/fail.
+    result = run_validate(scaffolded_project)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "aggregate:freshness" not in result.stdout
+
+
+def test_freshness_passes_when_fresh(scaffolded_project: Path) -> None:
+    _build_agg_with_manifest(scaffolded_project)
+    result = run_validate(scaffolded_project)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "PASS  aggregate:freshness" in result.stdout
+
+
+def test_freshness_fails_on_source_change(scaffolded_project: Path) -> None:
+    src = _build_agg_with_manifest(scaffolded_project)
+    src.write_text("raw,data\n9,9\n")                 # raw source mutated after build
+    result = run_validate(scaffolded_project)
+    assert result.returncode != 0
+    assert "changed since build" in result.stdout
+
+
+def test_freshness_warns_not_fails_when_source_absent(scaffolded_project: Path) -> None:
+    src = _build_agg_with_manifest(scaffolded_project)
+    src.unlink()                                       # raw distributed out-of-band
+    result = run_validate(scaffolded_project)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "cannot verify" in result.stdout
+
+
+def test_freshness_fails_on_output_edit(scaffolded_project: Path) -> None:
+    _build_agg_with_manifest(scaffolded_project)
+    (scaffolded_project / "analysis" / "output" / "agg.csv").write_text("date,n\n2024-01-01,6\n")
+    result = run_validate(scaffolded_project)
+    assert result.returncode != 0
+    assert "changed since build" in result.stdout
+
+
+def test_freshness_fails_on_dr_change(scaffolded_project: Path) -> None:
+    _build_agg_with_manifest(scaffolded_project)
+    dec = scaffolded_project / "analysis" / "_decisions.py"
+    dec.write_text(dec.read_text() + "\n# a rule's logic changed\n")
+    result = run_validate(scaffolded_project)
+    assert result.returncode != 0
+    assert "DR definition in _decisions.py changed" in result.stdout

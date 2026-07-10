@@ -45,6 +45,44 @@ make all            # validate + render
 `git diff analysis/output/findings.json` and bless the value changes before
 committing.
 
+## Large sources: materialised intermediates with a freshness gate
+
+Full-mode replay reads each finding's source *whole* and re-applies its DRs. When
+a source outgrows memory (hundreds of MB / millions of rows), that's non-viable —
+loading it on every commit OOMs or crawls. The pattern:
+
+1. **Build once, stream.** A build script (`analysis/NN_*.py`) reads the raw
+   source in chunks, applies the DR-NNN filters at build time, and writes a small
+   derived table (e.g. a daily aggregate) to `analysis/output/`.
+2. **Findings replay against the small table**, not the raw source — milliseconds,
+   `filters: []` (the DRs already ran at build).
+3. **Pin the derivation.** After writing the table, call
+   `analysis/_provenance.py:write_manifest(output=…, sources=[…], dr_set=[…])`. It
+   writes a sidecar manifest pinning the content hashes of the output, the raw
+   source(s), and a fingerprint of the whole `_decisions.py`.
+
+The risk this closes is **staleness**: a materialised table can drift from (a) the
+raw source or (b) a changed DR, and native sha256 pinning on a *finding* only
+catches a tampered table — not one stale against its inputs. `validate.py`'s
+`check_aggregate_freshness` re-derives the manifest hashes and, on any drift,
+fails (full mode) / warns (`--fast`) with a rebuild instruction. Like the rest of
+the contract it **detects, never rebuilds** — a source or DR change surfaces as an
+explicit failure that forces a conscious rebuild, then the finding's own pinned
+hash drifts red until you re-bless the value.
+
+Two rules make it safe:
+
+- **Deterministic build** (stable sort, fixed float formatting) — else the output
+  hash changes each rebuild and the gate false-alarms.
+- **A missing raw source only warns**, never gates: raw data is gitignored /
+  distributed out-of-band, so on a fresh clone or in CI (see below) the check
+  verifies what it can (output hash, DR fingerprint) and reports the raw as
+  "cannot verify" rather than failing.
+
+The DR fingerprint hashes the *whole* `_decisions.py`, so altering any rule marks
+every table pinning it stale — a deliberate over-trigger (a false rebuild beats a
+silent false-green).
+
 ## The freeze trap
 
 Quarto's `freeze: auto` (in `_quarto.yml`) re-executes a chunk only when the
