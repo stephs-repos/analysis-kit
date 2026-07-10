@@ -21,6 +21,7 @@ import hashlib
 import importlib.util
 import json
 import math
+import os
 import re
 import sys
 from pathlib import Path
@@ -531,6 +532,43 @@ def check_source_hash_consistency(findings: list[dict]) -> None:
         ok("source_hash:consistency")
 
 
+# Heuristic size above which loading a source *whole* for replay risks OOM or a
+# painfully slow commit gate — pandas needs ~2-10x the file size in RAM depending
+# on dtype mix. Advisory only. Override via AKIT_LARGE_SOURCE_MB: raise it to
+# silence the nudge once you have deliberately decided to keep a big source on
+# raw replay (it fits your machine), or lower it on a tight container.
+_LARGE_SOURCE_MB = int(os.environ.get("AKIT_LARGE_SOURCE_MB", "256"))
+
+
+def check_source_sizes(findings: list[dict]) -> None:
+    """Surface the materialise-or-not decision: warn when a finding cites a raw
+    source large enough that full-file replay may OOM / crawl, pointing at the
+    materialised-intermediate pattern (docs/REBUILD_PIPELINE.md).
+
+    Warn-only, never a gate — the call is the operator's (it depends on the
+    machine and dtype mix, so there is no universal cutoff). One warning per
+    source (many findings on the same big file → one nudge). Absent sources are
+    skipped: a gitignored / out-of-band file can't be stat'd, and a finding that
+    already cites a *small derived* table won't trip this at all.
+    """
+    seen: set[str] = set()
+    for f in findings:
+        for s in _sources(f):
+            path = s.get("path") if isinstance(s, dict) else None
+            if not isinstance(path, str) or path in seen:
+                continue
+            p = ROOT / path
+            if not p.exists():
+                continue
+            mb = p.stat().st_size / (1024 * 1024)
+            if mb >= _LARGE_SOURCE_MB:
+                seen.add(path)
+                warn("source_size:large",
+                     f"{f.get('id')} cites {path} ({mb:.0f} MB ≥ {_LARGE_SOURCE_MB} MB) — full-file "
+                     "replay may OOM/crawl; consider a materialised intermediate "
+                     "(docs/REBUILD_PIPELINE.md)")
+
+
 # Expected-schema lock file (opt-in). Produced by analysis.schemas.snapshot();
 # maps a source path to a serialized Pandera schema. When present, validate
 # re-checks each declared source against its locked schema to catch drift that
@@ -865,6 +903,7 @@ def main() -> int:
     check_reproducibility_shape(findings)
     check_tolerances(findings)
     check_source_hash_consistency(findings)
+    check_source_sizes(findings)
     check_trust_memo_orphans(findings)
     check_decisions_caveats_sync(findings, args.fast)
     check_aggregate_freshness(findings, args.fast)

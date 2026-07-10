@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -11,12 +12,13 @@ def write_findings(project: Path, findings: list[dict]) -> None:
     out.write_text(json.dumps(findings, indent=2))
 
 
-def run_validate(project: Path, *args: str) -> subprocess.CompletedProcess:
+def run_validate(project: Path, *args: str, env: dict | None = None) -> subprocess.CompletedProcess:
     return subprocess.run(
         ["python", "analysis/validate.py", *args],
         cwd=project,
         capture_output=True,
         text=True,
+        env=env,
     )
 
 
@@ -816,3 +818,28 @@ def test_freshness_fails_on_dr_change(scaffolded_project: Path) -> None:
     result = run_validate(scaffolded_project)
     assert result.returncode != 0
     assert "DR definition in _decisions.py changed" in result.stdout
+
+
+# ── large-source advisory (materialise-or-not nudge) ─────────────────────────
+
+def _seed_source_finding(project: Path) -> None:
+    src = project / "reference" / "raw-data" / "sessions.csv"
+    src.parent.mkdir(parents=True, exist_ok=True)
+    src.write_text("session_rating\n4\n5\n")
+    write_findings(project, [_minimal_finding()])
+
+
+def test_large_source_warns_not_fails(scaffolded_project: Path) -> None:
+    _seed_source_finding(scaffolded_project)
+    env = {**os.environ, "AKIT_LARGE_SOURCE_MB": "0"}   # any present source counts as "large"
+    result = run_validate(scaffolded_project, "--fast", env=env)
+    assert result.returncode == 0, result.stdout + result.stderr   # advisory, never a gate
+    assert "source_size:large" in result.stdout
+    assert "materialised intermediate" in result.stdout
+
+
+def test_small_source_no_warning_by_default(scaffolded_project: Path) -> None:
+    _seed_source_finding(scaffolded_project)
+    result = run_validate(scaffolded_project, "--fast")   # default 256 MB threshold
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "source_size:large" not in result.stdout
