@@ -690,3 +690,61 @@ def _install_replay_target(p: Path) -> None:
 def median_session_rating(df):
     return float(df["session_rating"].median())
 """)
+
+
+# ── decisions ↔ caveats sync ────────────────────────────────────────────────
+
+_FILLED_CAVEATS = """\
+---
+name: Data quality caveats
+---
+
+### A caveat
+
+- **Rule:** do a thing before aggregating
+- **How to apply:** {how}
+"""
+
+
+def _fill_caveats(p: Path, *, dr_ref: str | None) -> None:
+    """Overwrite the register with resolved content (no MUST_CUSTOMIZE marker)."""
+    how = dr_ref if dr_ref else "operational only"
+    (p / "memory" / "data_quality_caveats.md").write_text(_FILLED_CAVEATS.format(how=how))
+
+
+def _add_dr_function(p: Path, dr: str = "DR_001") -> None:
+    f = p / "analysis" / "_decisions.py"
+    f.write_text(f.read_text() + f"\n\ndef {dr}(df):\n    return df\n")
+
+
+def test_sync_dormant_while_caveats_unfilled(scaffolded_project: Path) -> None:
+    # Fresh scaffold still carries the MUST_CUSTOMIZE marker → check skips even
+    # though a DR function exists and DECISIONS ships an example DR-001 entry.
+    _add_dr_function(scaffolded_project)
+    result = run_validate(scaffolded_project)  # full mode
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "decisions_caveats:sync" not in result.stdout
+
+
+def test_sync_flags_active_dr_not_in_register(scaffolded_project: Path) -> None:
+    _fill_caveats(scaffolded_project, dr_ref=None)   # resolved, but no DR ref
+    _add_dr_function(scaffolded_project)             # DR-001 now implemented + active
+    result = run_validate(scaffolded_project)        # full mode = commit gate
+    assert result.returncode != 0
+    assert "DR-001 is active/implemented but not referenced" in result.stdout
+
+
+def test_sync_passes_when_dr_referenced(scaffolded_project: Path) -> None:
+    _fill_caveats(scaffolded_project, dr_ref="DR-001")
+    _add_dr_function(scaffolded_project)
+    result = run_validate(scaffolded_project)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "PASS  decisions_caveats:sync" in result.stdout
+
+
+def test_sync_warns_not_fails_in_fast_mode(scaffolded_project: Path) -> None:
+    _fill_caveats(scaffolded_project, dr_ref=None)
+    _add_dr_function(scaffolded_project)
+    result = run_validate(scaffolded_project, "--fast")   # Stop-hook mode = nudge
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "WARN  decisions_caveats:sync" in result.stdout

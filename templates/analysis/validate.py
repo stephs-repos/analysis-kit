@@ -31,6 +31,8 @@ FINDINGS = ROOT / "analysis" / "output" / "findings.json"
 DECISIONS_MOD = ROOT / "analysis" / "_decisions.py"
 TRUST_MEMO = ROOT / "live-docs" / "TRUST_MEMO.md"
 MANIFEST = ROOT / "analysis-kit.json"
+CAVEATS = ROOT / "memory" / "data_quality_caveats.md"
+DECISIONS_MD = ROOT / "live-docs" / "DECISIONS.md"
 
 VALID_CHECK_TYPES = {
     "scalar", "distribution", "matrix", "quote_provenance",
@@ -258,6 +260,87 @@ def check_trust_memo_orphans(findings: list[dict]) -> None:
             warn("trust_memo:abandonment",
                  f"highest finding F-{max_known:03d} but TRUST_MEMO cites only up to F-{max_cited:03d}")
     ok("trust_memo:no_orphans")
+
+
+def _dr_functions() -> set[str]:
+    """DR-NNN ids that have an implemented filter function in _decisions.py."""
+    if not DECISIONS_MOD.exists():
+        return set()
+    text = DECISIONS_MOD.read_text()
+    return {f"DR-{m.group(1)}" for m in re.finditer(r"def DR_(\d+)\s*\(", text)}
+
+
+def _dr_statuses() -> dict[str, str]:
+    """Map DR-NNN -> status (active/superseded/dropped/unknown) from DECISIONS.md."""
+    if not DECISIONS_MD.exists():
+        return {}
+    statuses: dict[str, str] = {}
+    current: str | None = None
+    for line in DECISIONS_MD.read_text().splitlines():
+        h = re.match(r"^#{2,3}\s+(DR-\d+)\b", line)
+        if h:
+            current = h.group(1)
+            statuses.setdefault(current, "unknown")
+        elif current and (s := re.search(r"\*\*Status:\*\*\s*(\w+)", line)):
+            statuses[current] = s.group(1).lower()
+    return statuses
+
+
+def check_decisions_caveats_sync(findings: list[dict], fast: bool) -> None:
+    """The DR-NNN cleanup rules and the caveats register (data_quality_caveats.md)
+    must not drift apart. The register is the contract read before aggregating; if
+    a filter you enforce isn't in it, the contract is silently incomplete.
+
+    Two structural desyncs, both high-precision:
+      A. A caveat cites a DR with no function, or one DECISIONS.md marks
+         dropped/superseded — a dangling pointer.
+      B. An active, implemented DR is absent from the register — the exact drift
+         that lets a DR resolve while its caveat still reads "Pending".
+
+    Severity follows the mode: WARN under --fast (a nudge every turn-end via the
+    Stop hook), FAIL in full mode (the commit gate). The check is dormant until
+    the caveats register is resolved: while it still carries a {{MUST_CUSTOMIZE}}
+    marker the scaffold isn't filled, so there is nothing to keep in sync yet.
+    """
+    name = "decisions_caveats:sync"
+    if not CAVEATS.exists():
+        return  # e.g. a --minimum tier without the memory register — nothing to check
+    caveat_text = CAVEATS.read_text()
+    if "{{MUST_CUSTOMIZE" in caveat_text:
+        return  # unresolved scaffold: /akit-fill hasn't filled the register yet
+
+    emit = warn if fast else fail
+    caveat_refs = set(re.findall(r"DR-\d+", caveat_text))  # literal "DR-NNN" won't match
+    functions = _dr_functions()
+    statuses = _dr_statuses()
+    problems: list[str] = []
+
+    # A: caveats must not point at a nonexistent or retired DR.
+    for ref in sorted(caveat_refs):
+        if ref not in functions:
+            problems.append(f"caveats cite {ref} but it has no function in _decisions.py")
+        elif statuses.get(ref) in {"dropped", "superseded"}:
+            problems.append(f"caveats cite {ref} but DECISIONS.md marks it {statuses[ref]}")
+
+    # B: every active, implemented DR must be referenced in the caveats register.
+    for dr in sorted(functions):
+        if statuses.get(dr, "unknown") in {"dropped", "superseded"}:
+            continue
+        if dr not in caveat_refs:
+            problems.append(f"{dr} is active/implemented but not referenced in the caveats register "
+                            "(add its id, even to note it carries no data caveat)")
+
+    for msg in problems:
+        emit(name, msg)
+
+    # Soft nudge (always a warning, never a gate): lingering pending decisions.
+    n_pending = len(re.findall(r"[Pp]ending decision", caveat_text))
+    if n_pending:
+        warn("decisions_caveats:pending",
+             f"{n_pending} caveat(s) still marked 'Pending decision' — confirm none are already resolved")
+
+    if not problems:
+        ok(name)
 
 
 def check_caveats_array(findings: list[dict]) -> None:
@@ -710,6 +793,7 @@ def main() -> int:
     check_tolerances(findings)
     check_source_hash_consistency(findings)
     check_trust_memo_orphans(findings)
+    check_decisions_caveats_sync(findings, args.fast)
 
     project_specific_checks(findings)
 
