@@ -49,7 +49,15 @@ committing.
 
 Full-mode replay reads each finding's source *whole* and re-applies its DRs. When
 a source outgrows memory (hundreds of MB / millions of rows), that's non-viable —
-loading it on every commit OOMs or crawls. The pattern:
+loading it on every commit OOMs or crawls.
+
+**When to reach for this** is a per-*source* decision, and the default is raw:
+replay directly over the source until a *measured* constraint (it won't fit in
+RAM whole, or it makes the commit gate crawl) forces you off. `validate.py`
+surfaces the prompt — `check_source_sizes` warns (advisory, never a gate) when a
+finding cites a source past ~256 MB (tune with `AKIT_LARGE_SOURCE_MB`), pointing
+here. Small sources (a 366-row weather CSV) stay on raw replay even in a project
+that materialises a big one; don't let one source's decision spread. The pattern:
 
 1. **Build once, stream.** A build script (`analysis/NN_*.py`) reads the raw
    source in chunks, applies the DR-NNN filters at build time, and writes a small
