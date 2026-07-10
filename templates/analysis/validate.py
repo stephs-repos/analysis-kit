@@ -33,6 +33,7 @@ TRUST_MEMO = ROOT / "live-docs" / "TRUST_MEMO.md"
 MANIFEST = ROOT / "analysis-kit.json"
 CAVEATS = ROOT / "memory" / "data_quality_caveats.md"
 DECISIONS_MD = ROOT / "live-docs" / "DECISIONS.md"
+OUTPUT_DIR = ROOT / "analysis" / "output"
 # Built by concatenation so this file does not itself trip check-must-customize
 # (which greps for the literal marker text).
 _SCAFFOLD_MARKER = "{{" + "MUST_CUSTOMIZE"
@@ -342,6 +343,75 @@ def check_decisions_caveats_sync(findings: list[dict], fast: bool) -> None:
         warn("decisions_caveats:pending",
              f"{n_pending} caveat(s) still marked 'Pending decision' — confirm none are already resolved")
 
+    if not problems:
+        ok(name)
+
+
+def check_aggregate_freshness(findings: list[dict], fast: bool) -> None:
+    """Freshness gate for materialised intermediate tables (analysis/_provenance.py).
+
+    A large raw source is often too big to replay per-finding, so the pattern is
+    to build a small aggregate ONCE with the DRs applied and let findings replay
+    against it. The risk is staleness: the table can drift from (a) the raw
+    source or (b) a changed DR definition, and native sha256 pinning on a
+    *finding* only catches a tampered table — not one stale against its inputs.
+
+    Each such table ships a `*.manifest.json` (written by _provenance.write_manifest)
+    pinning the content hashes of its inputs. This check re-derives them and fails
+    (full mode / commit) or warns (--fast / Stop) on drift, forcing a rebuild:
+
+      - output csv sha256 changed        → table hand-edited / rebuilt out of band
+      - raw source sha256 changed        → new data landed, table not rebuilt
+      - DR-function fingerprint changed  → a rule's logic changed (id unchanged)
+
+    A pinned source that is simply *absent* (raw data is routinely gitignored /
+    distributed out-of-band) is a warning — "cannot verify" — never a gate. The
+    check is inert until a manifest exists, so scaffolds and projects that don't
+    use materialised intermediates are unaffected.
+    """
+    name = "aggregate:freshness"
+    if not OUTPUT_DIR.exists():
+        return
+    manifests = sorted(OUTPUT_DIR.glob("*.manifest.json"))
+    if not manifests:
+        return
+    emit = warn if fast else fail
+    decisions_mod = _import_decisions()
+    problems: list[str] = []
+
+    for mpath in manifests:
+        rel = mpath.name
+        try:
+            m = json.loads(mpath.read_text())
+        except json.JSONDecodeError as e:
+            problems.append(f"{rel} does not parse: {e}")
+            continue
+        out = ROOT / m.get("output", "")
+        if not out.exists():
+            problems.append(f"{rel}: output {m.get('output')} is missing — rebuild")
+            continue
+        if _file_sha256(out) != m.get("output_sha256"):
+            problems.append(f"{rel}: {m.get('output')} changed since build (hand-edited or rebuilt out of band)")
+        inputs = m.get("inputs", {})
+        for src, pinned in (inputs.get("sources") or {}).items():
+            p = ROOT / src
+            if not p.exists():
+                # Raw sources are routinely gitignored / distributed out-of-band,
+                # so absence means "cannot verify", not "stale" — warn, never gate.
+                warn("aggregate:unverifiable",
+                     f"{rel}: source {src} not present — cannot verify it against the pinned hash")
+            elif _file_sha256(p) != pinned:
+                problems.append(f"{rel}: source {src} changed since build — rebuild the aggregate")
+        fp = getattr(decisions_mod, "decisions_fingerprint", None) if decisions_mod else None
+        if callable(fp):
+            if fp() != inputs.get("decisions_fingerprint"):
+                problems.append(f"{rel}: a DR definition in _decisions.py changed since build "
+                                f"(dr_set {inputs.get('dr_set')}) — rebuild the aggregate")
+        elif "decisions_fingerprint" in inputs:
+            problems.append(f"{rel}: cannot verify DR fingerprint (decisions_fingerprint() unavailable)")
+
+    for msg in problems:
+        emit(name, msg)
     if not problems:
         ok(name)
 
@@ -797,6 +867,7 @@ def main() -> int:
     check_source_hash_consistency(findings)
     check_trust_memo_orphans(findings)
     check_decisions_caveats_sync(findings, args.fast)
+    check_aggregate_freshness(findings, args.fast)
 
     project_specific_checks(findings)
 
