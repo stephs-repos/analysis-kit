@@ -33,6 +33,9 @@ TRUST_MEMO = ROOT / "live-docs" / "TRUST_MEMO.md"
 MANIFEST = ROOT / "analysis-kit.json"
 CAVEATS = ROOT / "memory" / "data_quality_caveats.md"
 DECISIONS_MD = ROOT / "live-docs" / "DECISIONS.md"
+# Built by concatenation so this file does not itself trip check-must-customize
+# (which greps for the literal marker text).
+_SCAFFOLD_MARKER = "{{" + "MUST_CUSTOMIZE"
 
 VALID_CHECK_TYPES = {
     "scalar", "distribution", "matrix", "quote_provenance",
@@ -299,14 +302,14 @@ def check_decisions_caveats_sync(findings: list[dict], fast: bool) -> None:
 
     Severity follows the mode: WARN under --fast (a nudge every turn-end via the
     Stop hook), FAIL in full mode (the commit gate). The check is dormant until
-    the caveats register is resolved: while it still carries a {{MUST_CUSTOMIZE}}
-    marker the scaffold isn't filled, so there is nothing to keep in sync yet.
+    the caveats register is resolved: while it still carries an unfilled scaffold
+    marker there is nothing to keep in sync yet.
     """
     name = "decisions_caveats:sync"
     if not CAVEATS.exists():
         return  # e.g. a --minimum tier without the memory register — nothing to check
     caveat_text = CAVEATS.read_text()
-    if "{{MUST_CUSTOMIZE" in caveat_text:
+    if _SCAFFOLD_MARKER in caveat_text:
         return  # unresolved scaffold: /akit-fill hasn't filled the register yet
 
     emit = warn if fast else fail
