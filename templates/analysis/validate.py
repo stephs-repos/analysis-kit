@@ -219,7 +219,14 @@ def check_code_paths_resolve(findings: list[dict]) -> None:
         if not path_str:
             fail("code_path:nonempty", f"{fid}: code_path has no file part")
             continue
-        if not (ROOT / path_str).exists():
+        # Containment: the file must resolve inside the project root — same guard
+        # full-mode replay applies, mirrored here so --fast is consistent (a
+        # code_path escaping the root can never be a legitimate finding).
+        p = (ROOT / path_str).resolve()
+        if not p.is_relative_to(ROOT):
+            fail("code_path:escapes", f"{fid}: code_path {path_str} escapes the project root")
+            continue
+        if not p.exists():
             fail("code_path:resolves", f"{fid}: {path_str} not found")
             continue
         kind = _suffix_kind(suffix)
@@ -387,13 +394,19 @@ def check_aggregate_freshness(findings: list[dict], fast: bool) -> None:
         except json.JSONDecodeError as e:
             problems.append(f"{rel} does not parse: {e}")
             continue
-        out = ROOT / m.get("output", "")
-        if not out.exists():
-            problems.append(f"{rel}: output {m.get('output')} is missing — rebuild")
+        out_rel = m.get("output") if isinstance(m, dict) else None
+        if not out_rel:
+            problems.append(f"{rel}: manifest has no 'output' field")
+            continue
+        out = ROOT / out_rel
+        if not out.is_file():  # is_file() (not exists()) so a dir / empty path can't crash _file_sha256
+            problems.append(f"{rel}: output {out_rel} is missing or not a file — rebuild")
             continue
         if _file_sha256(out) != m.get("output_sha256"):
-            problems.append(f"{rel}: {m.get('output')} changed since build (hand-edited or rebuilt out of band)")
-        inputs = m.get("inputs", {})
+            problems.append(f"{rel}: {out_rel} changed since build (hand-edited or rebuilt out of band)")
+        inputs = m.get("inputs")
+        if not isinstance(inputs, dict):
+            inputs = {}
         for src, pinned in (inputs.get("sources") or {}).items():
             p = ROOT / src
             if not p.exists():
@@ -718,6 +731,10 @@ def _replay_distribution(f: dict, dist: dict) -> bool:
     if not isinstance(expected, dict) or not expected:  # empty → vacuous pass; reject
         return False
     if not isinstance(dist, dict):
+        return False
+    # Key sets must match exactly — otherwise the code growing an extra key (or
+    # the stored dist being a subset) would replay green and silently drift.
+    if dist.keys() != expected.keys():
         return False
     abs_t, rel_t = _tols(f)
     for k, v in expected.items():

@@ -820,6 +820,16 @@ def test_freshness_fails_on_dr_change(scaffolded_project: Path) -> None:
     assert "DR definition in _decisions.py changed" in result.stdout
 
 
+def test_freshness_corrupt_manifest_fails_cleanly(scaffolded_project: Path) -> None:
+    # A manifest with no 'output' must produce a clean FAIL, not a traceback
+    # (previously `ROOT / ""` == ROOT -> _file_sha256(dir) crashed).
+    (scaffolded_project / "analysis" / "output" / "bad.manifest.json").write_text('{"inputs": {}}')
+    result = run_validate(scaffolded_project)
+    assert result.returncode != 0
+    assert "no 'output' field" in result.stdout
+    assert "Traceback" not in result.stderr
+
+
 # ── large-source advisory (materialise-or-not nudge) ─────────────────────────
 
 def _seed_source_finding(project: Path) -> None:
