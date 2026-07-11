@@ -56,7 +56,8 @@ These phases, one step at a time — you approve each; nothing is decided for yo
    data; the commit hook blocks anything red.
 
 From there you're in the steady-state loop: new claim → `/akit-finding`; new
-cleanup rule → tell Claude; unsure → `/akit-next`.
+cleanup rule → tell Claude; a status overview (every finding, its lineage, and
+anything out of sync) → `make report`; unsure → `/akit-next`.
 
 ## The four rules that keep you honest
 
