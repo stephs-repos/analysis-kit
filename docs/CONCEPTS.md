@@ -367,6 +367,18 @@ installed to keep working; the kit is just what created it.
   *reproducible* and that you've been *honest about how strong the evidence is*. A
   confident answer to the wrong question is the one thing no checker can catch —
   that's still on you and your reviewers.
+- **Not a proof that the code is honest.** A green ledger means each stored value
+  *is what its `code_path` produces from the declared, hash-pinned data* — not that
+  the function computes what its claim says. A `code_path` that ignores its input
+  and returns a constant (`def rating(df): return 4.2`) replays green forever.
+  `register_computed()` guards this *at authoring time* by running the code to
+  derive the value, but `findings.json` can be hand-edited to bypass it, and
+  `validate` cannot tell a real computation from a hard-coded return. So trust a
+  green ledger on a project *you authored or reviewed*; for one you didn't, read
+  the `code_path` functions, don't just run `validate`.
+- **Not a sandbox.** `validate` **imports and executes** the project's own
+  `code_path` and `_decisions.py` to replay findings. Running it on a project is
+  running that project's Python. See [`../SECURITY.md`](../SECURITY.md).
 
 ---
 
