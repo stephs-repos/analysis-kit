@@ -10,12 +10,13 @@
 PY ?= python3
 export PYTHONPATH := $(CURDIR)
 
-.PHONY: help findings validate validate-fast render all clean
+.PHONY: help findings validate validate-fast report render all clean
 
 help:
 	@echo "make findings       run analysis/NN_*.py -> refresh findings.json (then REVIEW THE DIFF)"
 	@echo "make validate       full replay; non-zero exit on any drift"
 	@echo "make validate-fast  structural checks only (~1s, no replay, no data needed)"
+	@echo "make report         regenerate analysis/output/report.html (status + drift view)"
 	@echo "make render         render vignettes (full tier; gated on validate)"
 	@echo "make all            validate + render"
 	@echo "make clean          remove Quarto caches"
@@ -32,6 +33,16 @@ validate:
 
 validate-fast:
 	$(PY) analysis/validate.py --fast
+
+# A human-facing STATUS VIEW, not a gate: it re-runs the checks in-process and
+# writes a self-contained analysis/output/report.html — per finding, what it's
+# built from, its trust status, and what's out of sync (with plain-English fixes).
+# Deliberately NOT gated on `validate` (unlike `render`): its whole job is to
+# surface drift, so it must render even on a red ledger. The output is a derived
+# view (gitignored) — regenerate to trust it. `--artifact PATH` emits a body-only
+# fragment for publishing as a shareable Artifact.
+report:
+	$(PY) analysis/report.py
 
 # render CANNOT run unless validate is green (the prerequisite enforces it).
 # It clears the Quarto freeze cache first: `freeze: auto` re-executes a chunk only
