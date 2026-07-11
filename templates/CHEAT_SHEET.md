@@ -15,6 +15,7 @@ want to do and need the exact command.
 | Record a cleanup rule | tell Claude: *"that's a decision — exclude DNF rows before any finisher count"* → becomes a `DR-NNN` |
 | Verify everything replays | `python analysis/validate.py` — exit 0 is the trust gate |
 | Quick structural check | `python analysis/validate.py --fast` (~1s, no replay, no data needed) |
+| See what's produced & what's out of sync | `make report` → `analysis/output/report.html` — per-finding claim, source lineage, trust status, and drift with plain-English fixes (a view, not a gate; regenerate to trust it) |
 | Commit | ask Claude to commit — the commit hook re-runs the full replay and blocks on red |
 
 ## Findings (`F-NNN`) — the unit of trust

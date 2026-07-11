@@ -98,6 +98,13 @@ Use when a finding is structurally important but not naturally machine-replayabl
 - `filters`: array of `DR-NNN` ids from `live-docs/DECISIONS.md`. Validate.py uses these to reconstruct the row subset and recompute the value.
 - `row_count_after_filter`: integer. Lets validate detect silent row-count changes between data refreshes. Required for replayable check_types; optional for `manual`.
 
+## Optional cross-reference fields
+
+Two optional, additive fields let tooling (notably `make report`) tie a finding to its surrounding provenance without scraping prose. Validate neither requires nor rejects them; add them via `register()`/`update()`, never by hand.
+
+- `decisions`: array of `DR-NNN` ids that shaped the value. Use it to record DR lineage when `reproducibility.filters` is `[]` because the DRs were applied upstream when building a materialised intermediate (see `docs/REBUILD_PIPELINE.md`) — the filters aren't re-applied at replay, but the lineage is still declared.
+- `addresses`: array of `A-NNN` ids from `live-docs/ANALYSIS_BACKLOG.md` — the analytical question(s) this finding answers.
+
 ## Replay vs consistency
 
 `validate.py` is a **replay harness**, not a consistency checker. For each replayable finding:

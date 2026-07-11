@@ -104,6 +104,9 @@ your `F-NNN` ids. State numbers *via* the finding — don't hand-type them."
 "You're in the analysis loop. From here:
 - new claim → `/akit-finding \"<hypothesis>\"`
 - new cleanup rule → surface a DR-NNN (tell me)
+- see the whole picture → `make report` (a status view: every finding with its
+  source lineage and trust status, the backlog, and anything out of sync — the
+  automated, comprehensive form of this skill's read)
 - keep the live-docs current (TRUST_MEMO, ANALYSIS_BACKLOG, METHODOLOGY_LOG)
 - communicate → `make render` / a vignette."
 Offer the single most likely next step (usually another finding).
