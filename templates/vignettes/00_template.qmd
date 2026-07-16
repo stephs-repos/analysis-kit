@@ -18,7 +18,26 @@ execute:
 
 ## Finding
 
-The headline result. Cite finding ids inline: [`F-NNN`](#).
+The headline result. Every number in the prose is pulled from the ledger and
+cited by finding id — never hand-typed. The setup chunk loads the ledger once:
+
+```{python}
+#| label: setup
+#| include: false
+import json
+
+# The verified ledger. Pull every value you cite from here, so the document
+# cannot drift from what validate.py replays. (Renders fine while empty.)
+F = {f["id"]: f for f in json.load(open("../analysis/output/findings.json"))}
+# value = F["F-001"]["value"]
+```
+
+Then state numbers via inline expressions (single braces when you use it — the
+doubled braces here only keep the template itself from executing the example):
+
+```markdown
+The median rating is `{{python}} f"{value:.1f}"` [`F-001`].
+```
 
 ## Context
 
@@ -32,10 +51,10 @@ What question this answers. Who's asking. Why now.
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Load relevant subset (filtered per the finding's reproducibility.filters).
-# df = pd.read_csv("../reference/raw-data/...")
-# Apply DR-NNN filters from analysis/_decisions.py.
-# Render the chart.
+# Draw from the same table the finding replays against — a derived
+# analysis/output/*.csv, or raw data with the DR-NNN filters from
+# analysis/_decisions.py applied — so prose and figure cannot disagree.
+# df = pd.read_csv("../analysis/output/...")
 plt.figure()
 plt.title("placeholder")
 plt.show()
